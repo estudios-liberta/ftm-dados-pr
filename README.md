@@ -135,9 +135,11 @@ Dois gráficos na terceira seção:
   meses, diferença máxima de 0,005 p.p., conferido a cada rodada — e estica a
   história até **fev/1998**. A de 2008 em diante é a 13762 direto. Em cada
   recorte, uma **linha pontilhada marca o recorde** (96,7% em fev/21 na
-  metodologia antiga, 87,7% em out/20 na nova). O eixo tem piso em 30%
-  (`eixo: {min: 30}`), senão a linha fica espremida na metade de cima.
-- **Dívida bruta e PIB: quem cresce mais** — a variação em 12 meses dos dois
+  metodologia antiga, 87,7% em out/20 na nova). O cartão usa
+  `eixo: {zero: false}`: a dívida nunca chegou perto de zero, então o piso
+  acompanha os dados da janela escolhida em vez de descer até zero — trocando o
+  período para 5 anos, a escala fecha em cima do trecho visível.
+- **Dívida bruta e PIB** — a variação em 12 meses dos dois
   lados da razão. Quando a linha branca (dívida) fica acima da azul (PIB
   nominal), a razão sobe; quando fica abaixo, cai. É o que explica 2021, em que
   a dívida cresceu 9,7% e o PIB nominal 18,4%, e a razão caiu sem que nada

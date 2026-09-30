@@ -345,7 +345,7 @@ def graficos_divida(saldo, pib12, pct_2008, pct_ate2007):
              titulo="Dívida bruta do governo geral",
              subtitulo="Em % do PIB",
              unidade="%",
-             eixo=dict(min=30),
+             eixo=dict(zero=False),
              variantes=[
                  variante("Metodologia até 2007",
                           [serie("Dívida bruta", BRANCO, ate2007, 2, rotulo=True),
@@ -362,7 +362,7 @@ def graficos_divida(saldo, pib12, pct_2008, pct_ate2007):
                   "diante é a série %d. A linha pontilhada marca o recorde de cada uma."
                   % (DIVIDA_SALDO, PIB12, DIVIDA_ATE2007, DIVIDA_2008)),
         dict(id="fiscal-divida-crescimento",
-             titulo="Dívida bruta e PIB: quem cresce mais",
+             titulo="Dívida bruta e PIB",
              subtitulo="Variação em 12 meses, em %, dos dois lados da razão dívida/PIB",
              unidade="%",
              series=[serie("Dívida bruta", BRANCO, cresc12(saldo), 2, rotulo=True),

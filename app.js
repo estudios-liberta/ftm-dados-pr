@@ -211,7 +211,10 @@
   function escalaY(mn, mx, eixo) {
     eixo = eixo || {};
     var baixo = mn, alto = mx;
-    if (mn >= 0 && mn <= mx * 0.6) baixo = 0;
+    // série que não chega perto de zero (dívida/PIB, por exemplo) pede
+    // "zero: false": aí o piso acompanha os dados da janela escolhida, em vez
+    // de descer até zero e espremer a linha na metade de cima
+    if (eixo.zero !== false && mn >= 0 && mn <= mx * 0.6) baixo = 0;
     if (eixo.min !== undefined) baixo = eixo.min;
     if (eixo.max !== undefined) alto = eixo.max;
     if (alto - baixo <= 0) alto = baixo + 1;
@@ -453,7 +456,8 @@
       var cor = corNoTema(o.r.s.cor, pal);
       var px = X(o.r.p.i + 0.5), py = Y(o.r.p.v), lx = L.x1 + L.rotuloX;
       svg.appendChild(el("polyline", {
-        points: px + "," + py + " " + (lx - 4) + "," + o.y, fill: "none", stroke: pal.suave, "stroke-width": 1.2
+        points: px + "," + py + " " + (lx - 4) + "," + o.y, fill: "none", stroke: cor,
+        "stroke-width": 1.5, opacity: 0.9
       }));
       svg.appendChild(texto(o.r.txt, {
         x: lx, y: o.y, "font-size": L.rotulo, "font-weight": "bold", fill: cor, "dominant-baseline": "central"
