@@ -52,10 +52,11 @@ python3 scripts/atualizar.py
 
 Ou, no GitHub: **Actions → Atualiza os dados → Run workflow**.
 
-## O fiscal (resultado primário e nominal)
+## O fiscal (resultado primário, nominal e dívida bruta)
 
-`scripts/fiscal.py` monta `dados/fiscal.json` com sete gráficos, em duas seções
-— **resultado primário** e **resultado nominal** — do setor público
+`scripts/fiscal.py` monta `dados/fiscal.json` com nove gráficos, em três seções
+— **resultado primário**, **resultado nominal** e **dívida bruta**. Os
+resultados são os do setor público
 consolidado: governo federal, Banco Central, estados, municípios e estatais,
 fora Petrobras e Eletrobras. Tudo vem do SGS do Banco Central:
 
@@ -67,6 +68,8 @@ fora Petrobras e Eletrobras. Tudo vem do SGS do Banco Central:
 | **4382** | PIB acumulado em 12 meses, R$ milhões — usado na conferência |
 | **4640, 4641, 4643, 4644, 4646, 4647, 4648** | Resultado primário por esfera, fluxo mensal, R$ milhões |
 | **7853** e **7854** | Governo Federal sem INSS e INSS, para abrir o federal em dois |
+| **4502** | Dívida bruta do governo geral, saldo em R$ milhões (metodologia até 2007) |
+| **4537** / **13762** | Dívida bruta em % do PIB, metodologia até 2007 / a partir de 2008 |
 
 **O sinal é invertido.** O SGS publica isto como *necessidade de financiamento*:
 lá, número positivo é **déficit**. Em dez/2022 a série 5793 marca −1,25, e 2022
@@ -119,9 +122,33 @@ O **INSS fica dentro do Governo Federal**; o segundo recorte do cartão o separa
 usando as séries 7853 e 7854 (somadas, dão exatamente a 4640 — conferido nos
 mesmos 297 meses).
 
+### A dívida bruta
+
+Dois gráficos na terceira seção:
+
+- **Dívida bruta do governo geral, em % do PIB**, com as duas metodologias em
+  recortes do mesmo cartão. A **até 2007** conta os títulos do Tesouro na
+  carteira do Banco Central e por isso dá um número bem maior (94,53% contra
+  82,86% em ago/2026) — é a que o FMI usa nas comparações entre países. Ela não
+  sai da série pronta (a 4537 só começa em 2002) e sim do **saldo em R$ (4502)
+  dividido pelo PIB de 12 meses (4382)**: dá exatamente a 4537 publicada — 296
+  meses, diferença máxima de 0,005 p.p., conferido a cada rodada — e estica a
+  história até **fev/1998**. A de 2008 em diante é a 13762 direto. Em cada
+  recorte, uma **linha pontilhada marca o recorde** (96,7% em fev/21 na
+  metodologia antiga, 87,7% em out/20 na nova). O eixo tem piso em 30%
+  (`eixo: {min: 30}`), senão a linha fica espremida na metade de cima.
+- **Dívida bruta e PIB: quem cresce mais** — a variação em 12 meses dos dois
+  lados da razão. Quando a linha branca (dívida) fica acima da azul (PIB
+  nominal), a razão sobe; quando fica abaixo, cai. É o que explica 2021, em que
+  a dívida cresceu 9,7% e o PIB nominal 18,4%, e a razão caiu sem que nada
+  tivesse sido pago.
+
 Números de referência para conferir: o primário de 2022 fechou em **+R$ 126,0 bi
 (+1,25% do PIB)**, o de 2023 em **−R$ 249,1 bi (−2,28%)** e o de 2024 em
-**−0,40%**; o nominal de 2023 em **−8,84% do PIB**.
+**−0,40%**; o nominal de 2023 em **−8,84% do PIB**; a dívida/PIB pela
+metodologia até 2007 em **95,43% em jul/2026** (o mesmo número do
+[poder-e-mercado](https://github.com/guivaraschinalves/poder-e-mercado), que
+faz a conta pelo Excel — dois caminhos, o mesmo resultado).
 
 ## O Tesouro Direto (taxa por prazo)
 

@@ -62,6 +62,15 @@ RESULTADOS = [
 ]
 PIB12 = 4382              # PIB acumulado em 12 meses, o denominador das razões
 
+# Dívida bruta do governo geral. A metodologia mudou em 2008 — a de antes conta
+# os títulos do Tesouro na carteira do Banco Central, e por isso dá um número
+# bem maior (94,5% contra 82,9% do PIB em ago/2026). O BC publica as duas em %
+# do PIB (4537 e 13762), mas a 4537 só começa em 2002: dividindo o saldo em R$
+# (4502) pelo PIB de 12 meses chega-se ao mesmo número e a série vai a 1998.
+DIVIDA_SALDO = 4502       # saldo em R$ milhões, metodologia até 2007
+DIVIDA_ATE2007 = 4537     # % do PIB, metodologia até 2007 (só para conferir)
+DIVIDA_2008 = 13762       # % do PIB, metodologia a partir de 2008
+
 # As esferas do setor público consolidado, no fluxo mensal do resultado
 # primário. Somadas, dão a 4649 — é o que o script confere a cada rodada.
 # (4639, 4642 e 4645 são subtotais e ficam de fora para não contar duas vezes.)
@@ -301,9 +310,76 @@ def grafico_esferas(esferas, fed_sem_inss, inss, consolidado):
              "Eletrobras estão fora das estatais desde 2009.")
 
 
+def cresc12(d):
+    """Crescimento sobre o mesmo mês do ano anterior, em %."""
+    fora = {}
+    for m in sorted(d):
+        ano, mes = m.split("-")
+        ant = "%04d-%s" % (int(ano) - 1, mes)
+        if ant in d and d[ant]:
+            fora[m] = (d[m] / d[ant] - 1) * 100
+    return fora
+
+
+def linha_do_topo(dados, nome):
+    """Linha pontilhada na altura do recorde, de ponta a ponta do gráfico."""
+    mes = max(dados, key=lambda k: dados[k])
+    topo = dados[mes]
+    rot = "%s: %s%% em %s/%s" % (nome, ("%.1f" % topo).replace(".", ","),
+                                 MESES[int(mes[5:7]) - 1], mes[2:4])
+    return serie(rot, CINZA, {m: topo for m in dados}, 2, traco="pontilhado", largura=3)
+
+
+def graficos_divida(saldo, pib12, pct_2008, pct_ate2007):
+    """Dívida bruta do governo geral nas duas metodologias, e o que move a
+    razão: a dívida crescendo mais (ou menos) que o PIB nominal."""
+    ate2007 = {m: saldo[m] / pib12[m] * 100 for m in saldo if m in pib12}
+    difs = [abs(ate2007[m] - pct_ate2007[m]) for m in ate2007 if m in pct_ate2007]
+    print("  dívida até 2007: a conta bate com a %d em %d meses, diferença máxima %.4f p.p."
+          % (DIVIDA_ATE2007, len(difs), max(difs)))
+    if max(difs) > 0.02:
+        raise RuntimeError("a dívida calculada não bate com a série %d (máx %.3f p.p.)"
+                           % (DIVIDA_ATE2007, max(difs)))
+    return [
+        dict(id="fiscal-divida-bruta",
+             titulo="Dívida bruta do governo geral",
+             subtitulo="Em % do PIB",
+             unidade="%",
+             eixo=dict(min=30),
+             variantes=[
+                 variante("Metodologia até 2007",
+                          [serie("Dívida bruta", BRANCO, ate2007, 2, rotulo=True),
+                           linha_do_topo(ate2007, "Topo")], "%"),
+                 variante("Metodologia a partir de 2008",
+                          [serie("Dívida bruta", BRANCO, pct_2008, 2, rotulo=True),
+                           linha_do_topo(pct_2008, "Topo")], "%"),
+             ],
+             nota="A metodologia mudou em 2008. A de até 2007 conta os títulos do Tesouro na "
+                  "carteira do Banco Central e por isso dá um número bem maior — é a que o FMI "
+                  "usa nas comparações entre países. Ela sai aqui do saldo em R$ (série %d) "
+                  "dividido pelo PIB dos últimos 12 meses (série %d), o que dá exatamente a série "
+                  "%d publicada pelo BC e ainda estica a história de 2002 para 1998. A de 2008 em "
+                  "diante é a série %d. A linha pontilhada marca o recorde de cada uma."
+                  % (DIVIDA_SALDO, PIB12, DIVIDA_ATE2007, DIVIDA_2008)),
+        dict(id="fiscal-divida-crescimento",
+             titulo="Dívida bruta e PIB: quem cresce mais",
+             subtitulo="Variação em 12 meses, em %, dos dois lados da razão dívida/PIB",
+             unidade="%",
+             series=[serie("Dívida bruta", BRANCO, cresc12(saldo), 2, rotulo=True),
+                     serie("PIB nominal (12 meses)", AZUL, cresc12(pib12), 2, rotulo=True)],
+             nota="A razão dívida/PIB sobe quando a linha branca fica acima da azul e cai quando "
+                  "fica abaixo — é a mesma conta do gráfico anterior, vista pelo numerador e pelo "
+                  "denominador. Os dois são valores correntes, então a inflação infla os dois "
+                  "lados: em 2021 o PIB nominal cresceu 18,4%% e a dívida 9,7%%, e a razão caiu "
+                  "sem que nada tivesse sido pago. A dívida é a da metodologia até 2007 (série "
+                  "%d)." % DIVIDA_SALDO),
+    ]
+
+
 def main():
     print("Baixando as séries do SGS…")
     pib12 = sgs(PIB12, INICIO)
+    pib12_longo = sgs(PIB12, "1996-01")
     esferas = {cod: sgs(cod, INICIO) for cod, _ in ESFERAS}
     fed_sem_inss, inss = sgs(7853, INICIO), sgs(7854, INICIO)
 
@@ -333,6 +409,10 @@ def main():
         ref = max(ref, max(mensal))
         print("  %s: 12 meses R$ %.1f bi (%.2f%% do PIB) em %s"
               % (r["nome"], sum(mensal[m] for m in sorted(mensal)[-12:]) / 1000, doze[max(doze)], max(mensal)))
+
+    secoes.append(dict(titulo="Dívida bruta", graficos=graficos_divida(
+        sgs(DIVIDA_SALDO, "1996-01"), pib12_longo, sgs(DIVIDA_2008, "1996-01"),
+        sgs(DIVIDA_ATE2007, "1996-01"))))
 
     doc = dict(
         atualizado=datetime.date.today().isoformat(),
