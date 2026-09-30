@@ -6,11 +6,13 @@ Gráficos do chart book desenhados no navegador, sem build: `index.html` +
 | Categoria | Dados | De onde vêm |
 |---|---|---|
 | **IPCA** | `dados/ipca.json` | Baixados **sozinhos** todo dia do Banco Central (SGS) e do IBGE (SIDRA) |
+| **Fiscal** | `dados/fiscal.json` | Baixados **sozinhos** do SGS do Banco Central (resultado primário do setor público consolidado) |
 | **Dívida Pública** | `dados/divida.json` | Gerados do Relatório Mensal da Dívida do Tesouro (o `.xlsx` em `dados/`) |
 | **Tesouro Direto** | `dados/tesouro-direto.json` | Baixados **sozinhos** do dado aberto do Tesouro Transparente (taxas diárias desde 2004) |
 
 - **Menu na lateral** — uma categoria retrátil por arquivo de dados (IPCA,
-  Dívida Pública), com as subcategorias dentro e os gráficos dentro delas. A
+  Fiscal, Dívida Pública, Tesouro Direto), com as subcategorias dentro e os
+  gráficos dentro delas. A
   página tem a mesma árvore, e **tudo abre fechado**: a tela inicial é o índice
   dos gráficos.
 - **Tela cheia** — da página inteira (botão na lateral) e de um gráfico só
@@ -49,6 +51,46 @@ python3 scripts/atualizar.py
 ```
 
 Ou, no GitHub: **Actions → Atualiza os dados → Run workflow**.
+
+## O fiscal (resultado primário)
+
+`scripts/fiscal.py` monta `dados/fiscal.json` com três gráficos do **resultado
+primário do setor público consolidado** — governo federal, estados, municípios e
+estatais, fora Petrobras e Eletrobras. Tudo vem do SGS do Banco Central:
+
+| Série | O que é |
+|---|---|
+| **4649** | Fluxo mensal, R$ milhões (desde dez/2001) |
+| **5793** | Acumulado em 12 meses, % do PIB (desde nov/2002) |
+| **4382** | PIB acumulado em 12 meses, R$ milhões — o denominador das razões |
+
+**O sinal é invertido.** O SGS publica isto como *necessidade de financiamento*:
+lá, número positivo é **déficit**. Em dez/2022 a série 5793 marca −1,25, e 2022
+fechou com superávit primário de 1,25% do PIB. Aqui tudo é multiplicado por −1,
+do jeito que se lê no noticiário: **positivo é superávit**. É o único ajuste
+feito nos números do BC, e está dito no subtítulo dos três gráficos.
+
+**O acumulado no ano é calculado aqui**, porque o SGS não tem essa série pronta:
+soma dos meses do ano dividida pelo PIB dos últimos 12 meses. Que o denominador
+é esse dá para conferir refazendo o acumulado em 12 meses pela mesma receita e
+comparando com a 5793 publicada: bate em **286 meses, com diferença máxima de
+0,005 p.p.**, que é o arredondamento da série do BC (ela sai com duas casas). A
+conferência roda a cada atualização, aparece no log e **interrompe o script** se
+a diferença passar de 0,02 p.p. Em dezembro o acumulado do ano e o de 12 meses
+coincidem, por construção — e coincidem mesmo, com diferença zero em todos os
+anos.
+
+Os gráficos:
+
+- **Em R$ bilhões correntes**, com três recortes: acumulado em 12 meses, no ano,
+  e o fluxo do mês (em barras).
+- **Em % do PIB**, acumulado em 12 meses ou no ano.
+- **Acumulado no ano, comparando os anos**: uma linha por ano no eixo de meses
+  (jan…dez), o ano corrente em branco e mais grosso. Em 5 ou em 10 anos. Como o
+  eixo é de categorias, esse cartão não tem botão de período.
+
+Números de referência para conferir: 2022 fechou em **+R$ 126,0 bi (+1,25% do
+PIB)**, 2023 em **−R$ 249,1 bi (−2,28%)** e 2024 em **−0,40%**.
 
 ## O Tesouro Direto (taxa por prazo)
 
@@ -208,9 +250,11 @@ python3 -m http.server 8000   # http://localhost:8000
 ```
 index.html  styles.css  app.js
 assets/     fundo.jpg (fundo dos slides do FtM), logo-ftm.svg, favicon.svg
-dados/      ipca.json, divida.json, tesouro-direto.json (gerados) + o .xlsx do Tesouro
-scripts/    atualizar.py (IPCA) e tesouro_direto.py (taxas), automáticos;
-            divida.py (dívida, do .xlsx, na mão)
+dados/      ipca.json, fiscal.json, divida.json, tesouro-direto.json (gerados)
+            + o .xlsx do Tesouro
+scripts/    atualizar.py (IPCA), fiscal.py (resultado primário) e
+            tesouro_direto.py (taxas), automáticos; divida.py (dívida, do
+            .xlsx, na mão)
 .github/workflows/atualizar.yml
 ```
 

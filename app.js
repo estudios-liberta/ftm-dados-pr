@@ -68,7 +68,8 @@
   var cartoes = [];
   // Um arquivo por categoria (IPCA, Dívida Pública…). Cada um traz categoria,
   // fonte, mês de referência e as suas seções; um que faltar é só ignorado.
-  var FONTES = ["dados/ipca.json", "dados/divida.json", "dados/tesouro-direto.json"];
+  var FONTES = ["dados/ipca.json", "dados/fiscal.json", "dados/divida.json",
+                "dados/tesouro-direto.json"];
   var docs = [];
   var logoSvg = null;   // {viewBox, nos}
 

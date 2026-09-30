@@ -29,6 +29,10 @@ jobs:
       - name: IPCA — baixa as séries e refaz as contas
         run: python scripts/atualizar.py
 
+      # Estatísticas fiscais: o BC divulga uma vez por mês, no fim da tarde.
+      - name: Fiscal — resultado primário (SGS)
+        run: python scripts/fiscal.py
+
       # O CSV do Tesouro Transparente muda em dia útil, de manhã.
       - name: Tesouro Direto — taxas por prazo
         run: python scripts/tesouro_direto.py
@@ -42,5 +46,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add dados
-          git commit -m "Atualiza os dados (IPCA e Tesouro Direto)"
+          git commit -m "Atualiza os dados"
           git push
