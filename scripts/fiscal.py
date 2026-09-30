@@ -259,9 +259,11 @@ def tres_graficos(r, mensal, doze_pct, pct_ano, anos):
 def grafico_esferas(esferas, fed_sem_inss, inss):
     """Quem faz o resultado primário: as sete esferas que somam o consolidado,
     e um segundo recorte com o INSS separado do resto do Governo Federal."""
-    def linhas(itens):
+    def colunas(itens):
+        # barra=1 no gráfico: sem fresta entre um mês e o seguinte, a pilha
+        # ganha cara de área empilhada
         return [serie(nome, COR_ESFERA.get(nome, CINZA),
-                      {m: v / 1000 for m, v in acumulado_12(d).items()}, 1)
+                      {m: v / 1000 for m, v in acumulado_12(d).items()}, 1, tipo="barra")
                 for nome, d in itens]
 
     sete = [(nome, esferas[cod]) for cod, nome in ESFERAS]
@@ -272,13 +274,16 @@ def grafico_esferas(esferas, fed_sem_inss, inss):
         titulo="Resultado primário por esfera",
         subtitulo="Em R$ bilhões correntes, acumulado em 12 meses — positivo é superávit",
         variantes=[
-            variante("Por esfera", linhas(sete), "bi"),
-            variante("Com o INSS à parte", linhas(com_inss), "bi"),
+            variante("Por esfera", colunas(sete), "bi", barra=1),
+            variante("Com o INSS à parte", colunas(com_inss), "bi", barra=1),
         ],
-        nota="As sete esferas somam o consolidado: o script confere isso a cada rodada e a "
-             "diferença máxima em 297 meses é de R$ 20 mil, puro arredondamento. O INSS entra "
-             "dentro do Governo Federal (séries 7853 e 7854, que somadas dão a 4640); o segundo "
-             "recorte separa os dois. Petrobras e Eletrobras estão fora das estatais desde 2009.")
+        nota="Colunas empilhadas: quem está em superávit sobe a partir do zero, quem está em "
+             "déficit desce — a altura de cada cor é o quanto aquela esfera põe ou tira, e o "
+             "resultado consolidado é a diferença entre as duas pilhas. As sete esferas somam o "
+             "consolidado: o script confere isso a cada rodada e a diferença máxima em 297 meses "
+             "é de R$ 20 mil, puro arredondamento. O INSS entra dentro do Governo Federal (séries "
+             "7853 e 7854, que somadas dão a 4640); o segundo recorte separa os dois. Petrobras e "
+             "Eletrobras estão fora das estatais desde 2009.")
 
 
 def main():

@@ -95,8 +95,10 @@ Os gráficos, os mesmos três formatos para cada resultado:
   valor de 2007. Como o eixo é de categorias, esses cartões não têm botão de
   período.
 
-E um quarto, só do primário: **por esfera**, em R$ bilhões acumulados em 12
-meses. As sete esferas somam o consolidado — o script confere isso a cada
+E um quarto, só do primário: **por esfera**, em colunas empilhadas de R$
+bilhões acumulados em 12 meses — quem está em superávit sobe a partir do zero,
+quem está em déficit desce, e o consolidado é a diferença entre as duas pilhas.
+As sete esferas somam o consolidado — o script confere isso a cada
 rodada, e a diferença máxima em 297 meses é de R$ 20 mil, puro arredondamento.
 O **INSS fica dentro do Governo Federal**; o segundo recorte do cartão o separa,
 usando as séries 7853 e 7854 (somadas, dão exatamente a 4640 — conferido nos
