@@ -428,9 +428,9 @@
         d += (ant === null || p.i - ant > buracoMax ? "M" : "L") + X(p.i + 0.5).toFixed(1) + " " + Y(p.v).toFixed(1);
         ant = p.i;
       });
-      var w = s.largura || L.linha;
+      var w = s.largura || L.linha, op = s.opacidade || null;
       area.appendChild(el("path", {
-        d: d, fill: "none", stroke: corNoTema(s.cor, pal), "stroke-width": w,
+        d: d, fill: "none", stroke: corNoTema(s.cor, pal), "stroke-width": w, opacity: op,
         "stroke-linejoin": "round", "stroke-linecap": s.traco ? "butt" : "round",
         "stroke-dasharray": s.traco === "pontilhado" ? (w * 1.2) + " " + (w * 1.6) : null
       }));
@@ -1162,7 +1162,9 @@
   }
 
   function baixarCSV(cartao) {
-    var g = graficoDe(cartao), cols = g.series.filter(function (s) { return s.legenda !== false || s.traco; });
+    // o arquivo leva toda série desenhada, inclusive a que serve de pano de
+    // fundo (legenda: false): na tela ela é contexto, no CSV é dado
+    var g = graficoDe(cartao), cols = g.series;
     var meses = {};
     cols.forEach(function (s) { s.dados.forEach(function (d) { meses[d[0]] = true; }); });
     var mapas = cols.map(function (s) { return s.dados.reduce(function (o, d) { o[d[0]] = d[1]; return o; }, {}); });

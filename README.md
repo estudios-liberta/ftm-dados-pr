@@ -52,45 +52,59 @@ python3 scripts/atualizar.py
 
 Ou, no GitHub: **Actions → Atualiza os dados → Run workflow**.
 
-## O fiscal (resultado primário)
+## O fiscal (resultado primário e nominal)
 
-`scripts/fiscal.py` monta `dados/fiscal.json` com três gráficos do **resultado
-primário do setor público consolidado** — governo federal, estados, municípios e
-estatais, fora Petrobras e Eletrobras. Tudo vem do SGS do Banco Central:
+`scripts/fiscal.py` monta `dados/fiscal.json` com sete gráficos, em duas seções
+— **resultado primário** e **resultado nominal** — do setor público
+consolidado: governo federal, Banco Central, estados, municípios e estatais,
+fora Petrobras e Eletrobras. Tudo vem do SGS do Banco Central:
 
 | Série | O que é |
 |---|---|
-| **4649** | Fluxo mensal, R$ milhões (desde dez/2001) |
-| **5793** | Acumulado em 12 meses, % do PIB (desde nov/2002) |
+| **4649** / **4583** | Fluxo mensal do resultado primário / nominal, R$ milhões (desde dez/2001) |
+| **5793** / **5727** | O mesmo acumulado em 12 meses, % do PIB (desde nov/2002) |
 | **4382** | PIB acumulado em 12 meses, R$ milhões — o denominador das razões |
+| **4640, 4641, 4643, 4644, 4646, 4647, 4648** | Resultado primário por esfera, fluxo mensal, R$ milhões |
+| **7853** e **7854** | Governo Federal sem INSS e INSS, para abrir o federal em dois |
 
 **O sinal é invertido.** O SGS publica isto como *necessidade de financiamento*:
 lá, número positivo é **déficit**. Em dez/2022 a série 5793 marca −1,25, e 2022
 fechou com superávit primário de 1,25% do PIB. Aqui tudo é multiplicado por −1,
 do jeito que se lê no noticiário: **positivo é superávit**. É o único ajuste
-feito nos números do BC, e está dito no subtítulo dos três gráficos.
+feito nos números do BC, e está dito no subtítulo de todos os gráficos.
 
 **O acumulado no ano é calculado aqui**, porque o SGS não tem essa série pronta:
 soma dos meses do ano dividida pelo PIB dos últimos 12 meses. Que o denominador
 é esse dá para conferir refazendo o acumulado em 12 meses pela mesma receita e
-comparando com a 5793 publicada: bate em **286 meses, com diferença máxima de
-0,005 p.p.**, que é o arredondamento da série do BC (ela sai com duas casas). A
-conferência roda a cada atualização, aparece no log e **interrompe o script** se
-a diferença passar de 0,02 p.p. Em dezembro o acumulado do ano e o de 12 meses
-coincidem, por construção — e coincidem mesmo, com diferença zero em todos os
-anos.
+comparando com a série publicada: bate em **286 meses, com diferença máxima de
+0,005 p.p.** nos dois resultados — que é o arredondamento das séries do BC (elas
+saem com duas casas). A conferência roda a cada atualização, aparece no log e
+**interrompe o script** se a diferença passar de 0,02 p.p. Em dezembro o
+acumulado do ano e o de 12 meses coincidem, por construção — e coincidem mesmo,
+com diferença zero em todos os anos.
 
-Os gráficos:
+Os gráficos, os mesmos três formatos para cada resultado:
 
-- **Em R$ bilhões correntes**, com três recortes: acumulado em 12 meses, no ano,
-  e o fluxo do mês (em barras).
-- **Em % do PIB**, acumulado em 12 meses ou no ano.
+- **Em R$ bilhões correntes**, acumulado em 12 meses ou o fluxo do mês (em
+  barras).
+- **Em % do PIB**, acumulado em 12 meses.
 - **Acumulado no ano, comparando os anos**: uma linha por ano no eixo de meses
-  (jan…dez), o ano corrente em branco e mais grosso. Em 5 ou em 10 anos. Como o
-  eixo é de categorias, esse cartão não tem botão de período.
+  (jan…dez), o ano corrente em branco e mais grosso. Em 5 anos, em 10 ou em
+  **todos** — e aí os anos anteriores viram um feixe cinza, fino e translúcido,
+  fora da legenda: o que se lê é onde o ano corrente cai dentro do feixe, não o
+  valor de 2007. Como o eixo é de categorias, esses cartões não têm botão de
+  período.
 
-Números de referência para conferir: 2022 fechou em **+R$ 126,0 bi (+1,25% do
-PIB)**, 2023 em **−R$ 249,1 bi (−2,28%)** e 2024 em **−0,40%**.
+E um quarto, só do primário: **por esfera**, em R$ bilhões acumulados em 12
+meses. As sete esferas somam o consolidado — o script confere isso a cada
+rodada, e a diferença máxima em 297 meses é de R$ 20 mil, puro arredondamento.
+O **INSS fica dentro do Governo Federal**; o segundo recorte do cartão o separa,
+usando as séries 7853 e 7854 (somadas, dão exatamente a 4640 — conferido nos
+mesmos 297 meses).
+
+Números de referência para conferir: o primário de 2022 fechou em **+R$ 126,0 bi
+(+1,25% do PIB)**, o de 2023 em **−R$ 249,1 bi (−2,28%)** e o de 2024 em
+**−0,40%**; o nominal de 2023 em **−8,84% do PIB**.
 
 ## O Tesouro Direto (taxa por prazo)
 
@@ -261,4 +275,10 @@ scripts/    atualizar.py (IPCA), fiscal.py (resultado primário) e
 O `app.js` é genérico: lê os arquivos de `dados/` e desenha o que vier. Séries
 em linha ou em barra empilhada, unidade `%`, `bi` (R$ bilhões) ou `anos`, eixo
 X mensal, diário (`diario`) ou por categoria (`categorias`), e cartões com
-`variantes`.
+`variantes`. Por série ainda dá para pedir `largura`, `opacidade`, `traco`,
+`rotulo` (o valor na ponta da linha) e `legenda: false`.
+
+`legenda: false` quer dizer **pano de fundo**: a série é desenhada, mas fica
+fora da legenda e da caixa do mouse — é o que faz o feixe cinza de "todos os
+anos" caber na tela. No **CSV ela entra assim mesmo**: na tela é contexto, no
+arquivo é dado.
