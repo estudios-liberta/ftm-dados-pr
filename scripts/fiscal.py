@@ -86,12 +86,13 @@ CORES_ANO = [VINHO, ROXO, AZUL_ESCURO, OLIVA, LARANJA, VERMELHO, VERDE, CIANO, A
 
 # Cor por esfera. O que manda aqui é o contraste entre *vizinhos na pilha*: a
 # ordem é Federal, BC, estaduais, municipais e as três estatais, então as cores
-# alternam de família (azul → areia → verde → roxo → laranja → petróleo →
-# vermelho) em vez de seguir o espectro. O INSS fica amarelo porque ele aparece
-# colado no azul do resto do Governo Federal, que é o par que mais importa.
+# alternam de família (azul → amarelo → verde → roxo → laranja → petróleo →
+# vermelho) em vez de seguir o espectro. O INSS fica na areia: ele aparece
+# colado no azul do resto do Governo Federal e é uma faixa larga — no amarelo
+# puro o bloco gritava.
 COR_ESFERA = {
-    "Governo Federal": AZUL, "Governo Federal sem INSS": AZUL, "INSS": AMARELO,
-    "Banco Central": AREIA,
+    "Governo Federal": AZUL, "Governo Federal sem INSS": AZUL, "INSS": AREIA,
+    "Banco Central": AMARELO,
     "Governos estaduais": VERDE, "Governos municipais": ROXO,
     "Estatais federais": LARANJA, "Estatais estaduais": PETROLEO,
     "Estatais municipais": VERMELHO,

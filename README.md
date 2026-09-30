@@ -111,9 +111,9 @@ quem está em déficit desce, e por cima vai a **linha branca do consolidado**.
 Nos botões dá para **ligar e desligar cada esfera** (a última não desliga, e a
 escolha sobrevive à troca de recorte, porque é guardada pelo nome da série). A
 cor de cada esfera foi escolhida pelo contraste entre **vizinhos na pilha**, não
-pela ordem do espectro: azul → areia → verde → roxo → laranja → petróleo →
-vermelho; o INSS fica amarelo porque aparece colado no azul do resto do Governo
-Federal. As sete esferas somam o consolidado — o script confere isso a cada
+pela ordem do espectro: azul → amarelo → verde → roxo → laranja → petróleo →
+vermelho; o INSS fica na areia, que é larga o bastante para não gritar ao lado
+do azul do resto do Governo Federal. As sete esferas somam o consolidado — o script confere isso a cada
 rodada, e a diferença máxima em 297 meses é de R$ 20 mil, puro arredondamento.
 O **INSS fica dentro do Governo Federal**; o segundo recorte do cartão o separa,
 usando as séries 7853 e 7854 (somadas, dão exatamente a 4640 — conferido nos
