@@ -53,10 +53,10 @@ INICIO = "2001-12"        # primeiro mês das séries de fluxo mensal
 # As séries do SGS. Primário e nominal têm a mesma estrutura: fluxo mensal em
 # R$ milhões e acumulado em 12 meses em % do PIB.
 RESULTADOS = [
-    dict(id="primario", nome="primário", mensal=4649, pct12=5793,
+    dict(id="primario", nome="primário", mensal=4649, pct12=5793, pct_ano=5507,
          titulo="Resultado primário do setor público consolidado",
          curto="Resultado primário"),
-    dict(id="nominal", nome="nominal", mensal=4583, pct12=5727,
+    dict(id="nominal", nome="nominal", mensal=4583, pct12=5727, pct_ano=5441,
          titulo="Resultado nominal do setor público consolidado",
          curto="Resultado nominal"),
 ]
@@ -78,18 +78,24 @@ ESFERAS = [
 # Cores do tema do Office, as mesmas dos outros gráficos do site.
 AZUL, VERMELHO, VERDE, ROXO, CIANO, LARANJA = "#4F81BD", "#C0504D", "#9BBB59", "#8064A2", "#4BACC6", "#F79646"
 AZUL_ESCURO, VINHO, OLIVA, AMARELO, BRANCO = "#1F497D", "#632523", "#77933C", "#FFFF00", "#FFFFFF"
-CINZA = "#95A5A6"
+CINZA, AREIA, PETROLEO = "#95A5A6", "#D9B382", "#2E6E7E"
 
 # Anos anteriores no gráfico de comparação, do mais antigo para o mais recente.
 # O ano corrente entra sempre em branco e mais grosso, por cima.
 CORES_ANO = [VINHO, ROXO, AZUL_ESCURO, OLIVA, LARANJA, VERMELHO, VERDE, CIANO, AZUL]
 
+# Cor por esfera. O que manda aqui é o contraste entre *vizinhos na pilha*: a
+# ordem é Federal, BC, estaduais, municipais e as três estatais, então as cores
+# alternam de família (azul → areia → verde → roxo → laranja → petróleo →
+# vermelho) em vez de seguir o espectro. O INSS fica amarelo porque ele aparece
+# colado no azul do resto do Governo Federal, que é o par que mais importa.
 COR_ESFERA = {
-    "Governo Federal": AZUL, "Governo Federal sem INSS": AZUL, "INSS": ROXO,
-    "Banco Central": CIANO,
-    "Governos estaduais": VERDE, "Governos municipais": AMARELO,
-    "Estatais federais": LARANJA, "Estatais estaduais": VERMELHO,
-    "Estatais municipais": CINZA,
+    "Governo Federal": AZUL, "Governo Federal sem INSS": AZUL, "INSS": AMARELO,
+    "Banco Central": AREIA,
+    "Governos estaduais": VERDE, "Governos municipais": ROXO,
+    "Estatais federais": LARANJA, "Estatais estaduais": PETROLEO,
+    "Estatais municipais": VERMELHO,
+    "Setor público consolidado": BRANCO,
 }
 
 MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
@@ -116,22 +122,6 @@ def acumulado_12(mensal):
     return fora
 
 
-def acumulado_ano(mensal):
-    """{mês: soma dos meses daquele ano até ele}. Zera em janeiro."""
-    fora, soma, ano = {}, 0.0, None
-    for m in sorted(mensal):
-        if m[:4] != ano:
-            ano, soma = m[:4], 0.0
-        soma += mensal[m]
-        fora[m] = soma
-    return fora
-
-
-def sobre_pib(fluxo, pib12):
-    """Fluxo em R$ milhões → % do PIB, com o PIB de 12 meses como denominador."""
-    return {m: v / pib12[m] * 100 for m, v in fluxo.items() if m in pib12}
-
-
 def confere_12_meses(nome, calculado, oficial):
     """O acumulado em 12 meses refeito aqui contra a série publicada pelo BC.
 
@@ -146,6 +136,20 @@ def confere_12_meses(nome, calculado, oficial):
     if max(difs) > 0.02:
         raise RuntimeError("o acumulado em 12 meses do resultado %s não bate com a série do BC "
                            "(máx %.3f p.p.)" % (nome, max(difs)))
+
+
+def confere_dezembros(nome, ano, doze):
+    """Em dezembro o acumulado no ano é o acumulado em 12 meses: as duas séries
+    do BC têm de dar o mesmo número, e é isso que amarra uma na outra."""
+    pares = [(m, ano[m], doze[m]) for m in sorted(ano) if m.endswith("-12") and m in doze]
+    if not pares:
+        raise RuntimeError("nenhum dezembro em comum entre o acumulado no ano e o de 12 meses (%s)" % nome)
+    pior = max(abs(a - d) for _, a, d in pares)
+    print("  %s: acumulado no ano fecha no de 12 meses em %d dezembros, diferença máxima %.3f p.p."
+          % (nome, len(pares), pior))
+    if pior > 0.02:
+        raise RuntimeError("o acumulado no ano do resultado %s não fecha em dezembro (máx %.3f p.p.)"
+                           % (nome, pior))
 
 
 def confere_esferas(esferas, consolidado):
@@ -248,17 +252,23 @@ def tres_graficos(r, mensal, doze_pct, pct_ano, anos):
              unidade="%",
              categorias=MESES,
              variantes=variantes_por_ano(pct_ano, anos),
-             nota="O ano corrente em branco, mais grosso. A linha de cada ano vai de janeiro até "
-                  "dezembro; a do ano corrente para no último mês divulgado. Como o SGS não publica "
-                  "o acumulado no ano, ele é calculado aqui: soma dos meses do ano dividida pelo PIB "
-                  "dos últimos 12 meses (série %d), o mesmo denominador que o BC usa nas razões "
-                  "dele. Em dezembro essa conta coincide com o acumulado em 12 meses." % PIB12),
+             nota="Série %d do SGS, com o sinal invertido. O ano corrente em branco, mais grosso; "
+                  "a linha de cada ano vai de janeiro até dezembro, e a do ano corrente para no "
+                  "último mês divulgado. Atenção ao denominador: o BC divide o acumulado do ano pelo "
+                  "PIB **dos mesmos meses**, não pelo de um ano inteiro. Por isso janeiro sozinho "
+                  "aparece em ±10%% — é o resultado de janeiro sobre o PIB de janeiro, e a "
+                  "arrecadação se concentra no começo do ano. A linha vai se assentando conforme os "
+                  "meses entram, e em dezembro cai exatamente no acumulado em 12 meses do gráfico "
+                  "anterior." % r["pct_ano"]),
     ]
 
 
-def grafico_esferas(esferas, fed_sem_inss, inss):
+def grafico_esferas(esferas, fed_sem_inss, inss, consolidado):
     """Quem faz o resultado primário: as sete esferas que somam o consolidado,
-    e um segundo recorte com o INSS separado do resto do Governo Federal."""
+    e um segundo recorte com o INSS separado do resto do Governo Federal.
+
+    Por cima das pilhas vai a linha branca do consolidado — que é a soma
+    algébrica das colunas, e o que se compara com o gráfico de cima."""
     def colunas(itens):
         # barra=1 no gráfico: sem fresta entre um mês e o seguinte, a pilha
         # ganha cara de área empilhada
@@ -266,6 +276,8 @@ def grafico_esferas(esferas, fed_sem_inss, inss):
                       {m: v / 1000 for m, v in acumulado_12(d).items()}, 1, tipo="barra")
                 for nome, d in itens]
 
+    linha_total = serie("Setor público consolidado", BRANCO,
+                        {m: v / 1000 for m, v in acumulado_12(consolidado).items()}, 1)
     sete = [(nome, esferas[cod]) for cod, nome in ESFERAS]
     com_inss = ([("Governo Federal sem INSS", fed_sem_inss), ("INSS", inss)] +
                 [(nome, esferas[cod]) for cod, nome in ESFERAS if nome != "Governo Federal"])
@@ -273,13 +285,15 @@ def grafico_esferas(esferas, fed_sem_inss, inss):
         id="fiscal-primario-esferas",
         titulo="Resultado primário por esfera",
         subtitulo="Em R$ bilhões correntes, acumulado em 12 meses — positivo é superávit",
+        selecao=True,
         variantes=[
-            variante("Por esfera", colunas(sete), "bi", barra=1),
-            variante("Com o INSS à parte", colunas(com_inss), "bi", barra=1),
+            variante("Por esfera", colunas(sete) + [linha_total], "bi", barra=1),
+            variante("Com o INSS à parte", colunas(com_inss) + [linha_total], "bi", barra=1),
         ],
         nota="Colunas empilhadas: quem está em superávit sobe a partir do zero, quem está em "
-             "déficit desce — a altura de cada cor é o quanto aquela esfera põe ou tira, e o "
-             "resultado consolidado é a diferença entre as duas pilhas. As sete esferas somam o "
+             "déficit desce — a altura de cada cor é o quanto aquela esfera põe ou tira, e a linha "
+             "branca é o consolidado, a soma das duas pilhas. Nos botões dá para tirar e pôr cada "
+             "esfera (a última não desliga). As sete esferas somam o "
              "consolidado: o script confere isso a cada rodada e a diferença máxima em 297 meses "
              "é de R$ 20 mil, puro arredondamento. O INSS entra dentro do Governo Federal (séries "
              "7853 e 7854, que somadas dão a 4640); o segundo recorte separa os dois. Petrobras e "
@@ -300,9 +314,11 @@ def main():
         mensal = {m: -v for m, v in mensal_sgs.items()}
         doze = {m: -v for m, v in doze_sgs.items()}
 
-        pct_12_calc = sobre_pib(acumulado_12(mensal), pib12)
+        pct_ano = {m: -v for m, v in sgs(r["pct_ano"], INICIO).items()}
+        pct_12_calc = {m: sum(mensal[k] for k in sorted(mensal)[max(0, i - 11):i + 1]) / pib12[m] * 100
+                       for i, m in enumerate(sorted(mensal)) if i >= 11 and m in pib12}
         confere_12_meses(r["nome"], pct_12_calc, doze)
-        pct_ano = sobre_pib(acumulado_ano(mensal), pib12)
+        confere_dezembros(r["nome"], pct_ano, doze)
         anos = sorted({m[:4] for m in pct_ano})
 
         graficos = tres_graficos(r, mensal, doze, pct_ano, anos)
@@ -310,7 +326,7 @@ def main():
             graficos.append(grafico_esferas(
                 {c: {m: -v for m, v in d.items()} for c, d in esferas.items()},
                 {m: -v for m, v in fed_sem_inss.items()},
-                {m: -v for m, v in inss.items()}))
+                {m: -v for m, v in inss.items()}, mensal))
             confere_esferas(esferas, mensal_sgs)
         secoes.append(dict(titulo="Resultado " + r["nome"], graficos=graficos))
         ref = max(ref, max(mensal))

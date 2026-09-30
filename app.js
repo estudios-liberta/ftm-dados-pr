@@ -161,7 +161,20 @@
   // Um cartão pode ter variantes (agência, moeda, "% ou R$"…): o gráfico que
   // vale é a base com a variante escolhida por cima. O objeto fica guardado
   // para as séries manterem a identidade entre desenho e interação.
+  // O cartão com "selecao" deixa o usuário ligar e desligar cada série; a
+  // escolha vale por cartão e sobrevive à troca de recorte (pelo nome da série).
   function graficoDe(cartao) {
+    var g = comVariante(cartao);
+    if (!g.selecao || !cartao.desligadas) return g;
+    var fica = g.series.filter(function (s) { return !cartao.desligadas[s.nome]; });
+    if (!fica.length || fica.length === g.series.length) return g;
+    var copia = {};
+    for (var a in g) copia[a] = g[a];
+    copia.series = fica;
+    return copia;
+  }
+
+  function comVariante(cartao) {
     var base = cartao.grafico;
     if (!base.variantes) return base;
     var k = cartao.variante || 0;
@@ -929,12 +942,44 @@
             x.setAttribute("aria-pressed", String(j === k));
           });
           montarPeriodos();
+          montarSelecao();
           desenhar(cartao, true);
         });
         grupoVar.appendChild(b);
       });
       esquerda.appendChild(grupoVar);
     }
+
+    // seleção de séries: um botão por linha do gráfico, para o leitor tirar o
+    // que não interessa. A escolha é guardada pelo nome, então sobrevive à
+    // troca de recorte; desligar a última fica bloqueado (gráfico vazio não é
+    // gráfico). O botão leva a cor da série, senão não dá para saber qual é qual.
+    var grupoSel = html("div", { "class": "series", role: "group", "aria-label": "Séries de " + g.titulo });
+    function montarSelecao() {
+      var efetivo = comVariante(cartao);
+      grupoSel.innerHTML = "";
+      grupoSel.hidden = !efetivo.selecao;
+      if (grupoSel.hidden) return;
+      efetivo.series.forEach(function (s) {
+        var ligada = !(cartao.desligadas || {})[s.nome];
+        var b = html("button", { type: "button", "aria-pressed": String(ligada), title: s.nome });
+        b.appendChild(html("span", { "class": "tinta", style: "background:" + s.cor }));
+        b.appendChild(html("span", { texto: s.nome }));
+        b.addEventListener("click", function () {
+          cartao.desligadas = cartao.desligadas || {};
+          var vaiDesligar = !cartao.desligadas[s.nome];
+          var ligadas = comVariante(cartao).series.filter(function (x) { return !cartao.desligadas[x.nome]; });
+          if (vaiDesligar && ligadas.length < 2) return;   // a última não desliga
+          if (vaiDesligar) cartao.desligadas[s.nome] = true;
+          else delete cartao.desligadas[s.nome];
+          b.setAttribute("aria-pressed", String(!vaiDesligar));
+          desenhar(cartao, true);
+        });
+        grupoSel.appendChild(b);
+      });
+    }
+    montarSelecao();
+    esquerda.appendChild(grupoSel);
 
     // períodos: dependem da variante (a que tem eixo de categorias não tem)
     var grupo = html("div", { "class": "periodos", role: "group", "aria-label": "Período de " + g.titulo });
@@ -996,7 +1041,8 @@
     // cartão (ou seção) fechado mede zero: redesenha quando voltar a aparecer
     if (!cartao.frame.clientWidth) { cartao.chave = null; return; }
     var nomeLayout = cartao.frame.clientWidth < 700 || window.innerWidth < 700 ? "narrow" : "wide";
-    var chave = nomeLayout + "|" + tema() + "|" + cartao.periodo + "|" + cartao.variante;
+    var chave = nomeLayout + "|" + tema() + "|" + cartao.periodo + "|" + cartao.variante +
+      "|" + Object.keys(cartao.desligadas || {}).sort().join(",");
     if (!forcar && cartao.chave === chave) return;
     cartao.chave = chave;
     var L = LAYOUTS[nomeLayout];

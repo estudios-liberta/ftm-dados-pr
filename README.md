@@ -63,7 +63,8 @@ fora Petrobras e Eletrobras. Tudo vem do SGS do Banco Central:
 |---|---|
 | **4649** / **4583** | Fluxo mensal do resultado primário / nominal, R$ milhões (desde dez/2001) |
 | **5793** / **5727** | O mesmo acumulado em 12 meses, % do PIB (desde nov/2002) |
-| **4382** | PIB acumulado em 12 meses, R$ milhões — o denominador das razões |
+| **5507** / **5441** | O acumulado **no ano**, % do PIB (primário / nominal) |
+| **4382** | PIB acumulado em 12 meses, R$ milhões — usado na conferência |
 | **4640, 4641, 4643, 4644, 4646, 4647, 4648** | Resultado primário por esfera, fluxo mensal, R$ milhões |
 | **7853** e **7854** | Governo Federal sem INSS e INSS, para abrir o federal em dois |
 
@@ -73,15 +74,24 @@ fechou com superávit primário de 1,25% do PIB. Aqui tudo é multiplicado por �
 do jeito que se lê no noticiário: **positivo é superávit**. É o único ajuste
 feito nos números do BC, e está dito no subtítulo de todos os gráficos.
 
-**O acumulado no ano é calculado aqui**, porque o SGS não tem essa série pronta:
-soma dos meses do ano dividida pelo PIB dos últimos 12 meses. Que o denominador
-é esse dá para conferir refazendo o acumulado em 12 meses pela mesma receita e
-comparando com a série publicada: bate em **286 meses, com diferença máxima de
-0,005 p.p.** nos dois resultados — que é o arredondamento das séries do BC (elas
-saem com duas casas). A conferência roda a cada atualização, aparece no log e
-**interrompe o script** se a diferença passar de 0,02 p.p. Em dezembro o
-acumulado do ano e o de 12 meses coincidem, por construção — e coincidem mesmo,
-com diferença zero em todos os anos.
+**Cuidado com o denominador do acumulado no ano.** As séries 5507 e 5441 não
+dividem o acumulado do ano pelo PIB de um ano inteiro: dividem pelo **PIB dos
+mesmos meses**. Por isso janeiro sozinho aparece em ±10% do PIB — é o resultado
+de janeiro sobre o PIB de janeiro, e a arrecadação se concentra no começo do
+ano. A linha vai se assentando conforme os meses entram e, em dezembro, cai
+exatamente no acumulado em 12 meses. (Conferido: a razão da 5507 é reproduzida
+por `acumulado no ano ÷ PIB acumulado no ano` — série 4380, o PIB mensal — em
+todos os meses desde 2002, com diferença máxima de 0,005 p.p.)
+
+Duas conferências rodam a cada atualização, aparecem no log e **interrompem o
+script** se a diferença passar do limite:
+
+- o **acumulado em 12 meses** refeito aqui (soma de 12 meses do fluxo mensal
+  dividida pela série 4382) contra o publicado: bate em **286 meses, diferença
+  máxima de 0,005 p.p.** nos dois resultados — o arredondamento das séries do BC,
+  que saem com duas casas;
+- o **acumulado no ano fecha no de 12 meses em dezembro**: 24 dezembros,
+  diferença **zero**.
 
 Os gráficos, os mesmos três formatos para cada resultado:
 
@@ -97,8 +107,13 @@ Os gráficos, os mesmos três formatos para cada resultado:
 
 E um quarto, só do primário: **por esfera**, em colunas empilhadas de R$
 bilhões acumulados em 12 meses — quem está em superávit sobe a partir do zero,
-quem está em déficit desce, e o consolidado é a diferença entre as duas pilhas.
-As sete esferas somam o consolidado — o script confere isso a cada
+quem está em déficit desce, e por cima vai a **linha branca do consolidado**.
+Nos botões dá para **ligar e desligar cada esfera** (a última não desliga, e a
+escolha sobrevive à troca de recorte, porque é guardada pelo nome da série). A
+cor de cada esfera foi escolhida pelo contraste entre **vizinhos na pilha**, não
+pela ordem do espectro: azul → areia → verde → roxo → laranja → petróleo →
+vermelho; o INSS fica amarelo porque aparece colado no azul do resto do Governo
+Federal. As sete esferas somam o consolidado — o script confere isso a cada
 rodada, e a diferença máxima em 297 meses é de R$ 20 mil, puro arredondamento.
 O **INSS fica dentro do Governo Federal**; o segundo recorte do cartão o separa,
 usando as séries 7853 e 7854 (somadas, dão exatamente a 4640 — conferido nos
@@ -278,7 +293,8 @@ O `app.js` é genérico: lê os arquivos de `dados/` e desenha o que vier. Séri
 em linha ou em barra empilhada, unidade `%`, `bi` (R$ bilhões) ou `anos`, eixo
 X mensal, diário (`diario`) ou por categoria (`categorias`), e cartões com
 `variantes`. Por série ainda dá para pedir `largura`, `opacidade`, `traco`,
-`rotulo` (o valor na ponta da linha) e `legenda: false`.
+`rotulo` (o valor na ponta da linha) e `legenda: false`. Com `selecao: true` no
+gráfico, cada série ganha um botão para ligar e desligar.
 
 `legenda: false` quer dizer **pano de fundo**: a série é desenhada, mas fica
 fora da legenda e da caixa do mouse — é o que faz o feixe cinza de "todos os

@@ -135,6 +135,20 @@ details[open] > summary > .seta, details[open] > .nav-rotulo > .seta, details[op
 .periodos button[aria-pressed="true"] { color: var(--ink); background: var(--accent-wash); border-color: var(--accent); }
 .btn { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); }
 
+/* seleção de séries: mesmo botão dos períodos, com a cor da linha na frente.
+   Desligada, a série fica apagada e a tinta perde a cor. */
+.series { display: flex; flex-wrap: wrap; gap: 6px; }
+.series button {
+  font: inherit; font-size: 14px; color: var(--ink-2); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 7px;
+  background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px;
+}
+.series button:hover { color: var(--ink); border-color: var(--accent); }
+.series button[aria-pressed="true"] { color: var(--ink); border-color: var(--accent); background: var(--accent-wash); }
+.series button[aria-pressed="false"] { opacity: .55; }
+.series button[aria-pressed="false"] .tinta { background: var(--ink-2) !important; opacity: .4; }
+.series .tinta { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+
 .baixar { position: relative; }
 .menu {
   position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; min-width: 260px;
