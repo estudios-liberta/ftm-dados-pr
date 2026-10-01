@@ -135,8 +135,10 @@
                  valor: function (v) { return "US$ " + nf(2).format(v) + " tri"; } },
     "usd-oz": { eixo: function (v, passo) { return nf(casasDoPasso(passo)).format(v); },
                 valor: function (v) { return "US$ " + nf(0).format(v) + "/oz"; } },
+    // tonelada: a casa decimal só importa onde o número é pequeno (os −5,4 t
+    // dos Estados Unidos); num estoque de 222 mil t ela é ruído
     t: { eixo: function (v, passo) { return nf(casasDoPasso(passo)).format(v); },
-         valor: function (v) { return nf(1).format(v) + " t"; } }
+         valor: function (v) { return nf(Math.abs(v) >= 1000 ? 0 : 1).format(v) + " t"; } }
   };
   function unidade(g) { return UNIDADES[g.unidade] || UNIDADES["%"]; }
 

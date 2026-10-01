@@ -9,11 +9,11 @@ Gráficos do chart book desenhados no navegador, sem build: `index.html` +
 | **Fiscal** | `dados/fiscal.json` | Baixados **sozinhos** do SGS do Banco Central (resultado primário do setor público consolidado) |
 | **Dívida Pública** | `dados/divida.json` | Gerados do Relatório Mensal da Dívida do Tesouro (o `.xlsx` em `dados/`) |
 | **Tesouro Direto** | `dados/tesouro-direto.json` | Baixados **sozinhos** do dado aberto do Tesouro Transparente (taxas diárias desde 2004) |
-| **Reservas internacionais** | `dados/reservas.json` | Gerados da planilha de reservas do FMI e do World Gold Council (o `.xlsx` em `dados/`) |
+| **Ouro e reservas internacionais** | `dados/reservas.json` | Gerados da planilha de ouro e reservas do FMI, do World Gold Council e da Metals Focus (o `.xlsx` em `dados/`) |
 
 - **Menu na lateral** — uma categoria retrátil por arquivo de dados (IPCA,
-  Fiscal, Dívida Pública, Tesouro Direto, Reservas internacionais), com as
-  subcategorias dentro e os
+  Fiscal, Dívida Pública, Tesouro Direto, Ouro e reservas internacionais), com
+  as subcategorias dentro e os
   gráficos dentro delas. A
   página tem a mesma árvore, e **tudo abre fechado**: a tela inicial é o índice
   dos gráficos.
@@ -206,10 +206,10 @@ Duas coisas que o dado impõe:
   2016-2017, a de 20 anos do IPCA+ antes de 2010. Nesses períodos não havia
   papel em oferta naquele prazo.
 
-## As reservas internacionais (planilha do FMI)
+## O ouro e as reservas internacionais (planilha do FMI e do WGC)
 
 Também **não** se atualiza sozinha: vem de `dados/reservas de ouro.xlsx`, uma
-planilha com quatro abas trimestrais. Para atualizar, trocar o `.xlsx` e rodar
+planilha com oito abas. Para atualizar, trocar o `.xlsx` e rodar
 `python3 scripts/reservas.py` (ele pega o mais novo que casar com `*reserva*`).
 
 | Aba | Cartão | Recortes |
@@ -219,6 +219,25 @@ planilha com quatro abas trimestrais. Para atualizar, trocar o `.xlsx` e rodar
 | Variação … acum | Variação acumulada das reservas de ouro, em toneladas | países selecionados / total mundial |
 | variação … anual | Variação anual das reservas de ouro, em toneladas | países selecionados / total mundial |
 | % de ouro nas reservas | Ouro nas reservas internacionais, em % das reservas de cada país | G20, com seleção |
+| Oferta e Demanda | Oferta e demanda de ouro — colunas empilhadas por componente, total em linha | demanda / oferta |
+| Demanda por País | Demanda de ouro por país e região — nove grupos empilhados mais o resíduo, total em linha | joias / barras e moedas |
+| Mine production data | Produção das minas de ouro, por região | seleção por região |
+| Above-ground stocks | Estoque de ouro acima do solo, por destino | por destino / com o investimento aberto |
+
+As quatro abas do mercado de ouro (as de baixo na tabela) têm somas que **têm
+de fechar**, e o script confere todas a cada rodada, abortando se alguma passar
+de 0,2 t: os componentes somam o total do balanço, a oferta total é igual à
+demanda total, os nove grupos mais o resíduo somam o total do mundo, as sete
+regiões somam a produção mundial e os quatro destinos somam o estoque. Onde uma
+série não existe naquele ponto (a Austrália só tem dado a partir de 2021), ela
+conta zero na conferência — que é o que o gráfico desenha.
+
+Como os grupos da demanda por região foram montados, sem contar duas vezes:
+"Américas ex EUA" é a linha das Américas menos a dos Estados Unidos, "Ásia ex
+China" é a soma dos dez asiáticos que ficam fora da Grande China, e Grande
+China é continente + Hong Kong + Taiwan. A faixa cinza é o resíduo da própria
+planilha (`other & stock change`), que é o que faz a pilha encostar na linha do
+total.
 
 Três coisas que o script resolve e vale saber:
 
@@ -353,7 +372,8 @@ scripts/    atualizar.py (IPCA), fiscal.py (resultado primário) e
 O `app.js` é genérico: lê os arquivos de `dados/` e desenha o que vier. Séries
 em linha ou em barra empilhada, unidade `%`, `bi` (R$ bilhões), `anos`,
 `usd-tri`, `usd-oz` ou `t` (toneladas), eixo X mensal, diário (`diario`),
-trimestral (`trimestral`, chave `"2000-Q1"`) ou por categoria (`categorias`), e
+trimestral (`trimestral`, chave `"2000-Q1"`) ou por categoria (`categorias`,
+que é como entram as séries anuais — um rótulo por ano), e
 cartões com `variantes`. Por série ainda dá para pedir `largura`, `opacidade`,
 `traco`, `rotulo` (o valor na ponta da linha) e `legenda: false`. Com
 `selecao: true` no gráfico, cada série ganha um botão para ligar e desligar.

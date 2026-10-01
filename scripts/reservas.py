@@ -11,7 +11,7 @@ Só usa a biblioteca padrão: a leitura do .xlsx é a classe `Planilha` do
 scripts/divida.py (zipfile + ElementTree). Não entra na Action — a planilha
 chega à mão, como o Relatório da Dívida.
 
-AS QUATRO ABAS
+AS OITO ABAS
 
   - **Currency Comp** — composição das reservas alocadas por moeda, trimestral
     de 1999-Q1 em diante, em **US$ milhões**, mais o ouro a preço de mercado e
@@ -24,6 +24,22 @@ AS QUATRO ABAS
     trimestres (começa em 2001-Q1).
   - **% de ouro nas reservas** — participação do ouro nas reservas de cada
     país, **em fração** (0,833 = 83,3%).
+  - **Oferta e Demanda** — o balanço trimestral do mercado de ouro desde
+    2010-Q1, em toneladas: do lado da demanda joias, tecnologia, investimento,
+    bancos centrais e o balcão; do lado da oferta mineração e ouro reciclado.
+    Os dois totais são o **mesmo número** por construção — o balcão (OTC) é o
+    item de fechamento do balanço, e por isso é o único que fica negativo.
+  - **Demanda por País** — três blocos lado a lado, deitados (país na linha,
+    trimestre na coluna): joias nas colunas 2–67, barras e moedas nas 70–135 e
+    ETFs da 137 em diante (este não é usado aqui). Em cada bloco as linhas sem
+    recuo são os países e regiões de topo, e as recuadas são abertura delas.
+  - **Mine production data** — produção das minas, anual desde 2010, por país
+    dentro de sete regiões; as linhas "Total"/"Sub-total" de cada região são os
+    subtotais, e a última linha é o total do mundo.
+  - **Above-ground stocks** — o estoque de ouro já extraído, anual desde 2010,
+    repartido em joias, bancos centrais, investimento privado (que se abre em
+    barras e moedas e ETFs) e outros/balcão. A última coluna é o ano corrente
+    até o fim de 2026-Q2.
 
 O TOTAL. As abas de país trazem duas colunas de total: "Total above", que é a
 soma das colunas de país, e "IMF World", o agregado mundial do próprio FMI. A
@@ -33,8 +49,10 @@ reportou e a soma passa a misturar quem reportou com quem não: ela marca
 é consistente ponta a ponta (e que, por isso mesmo, não fecha com a soma das
 colunas de país).
 
-O eixo X é trimestral: a chave é "2000-Q1" e o `app.js` trata isso com
-`trimestral: true`.
+Dois eixos X diferentes: as abas trimestrais usam a chave "2000-Q1" com
+`trimestral: true`, e as duas anuais (mineração e estoque) entram como eixo de
+categorias — um rótulo por ano, que é o que também deixa o "2026*" do estoque
+aparecer como ele é, um ano pela metade.
 """
 import datetime
 import glob
@@ -55,6 +73,11 @@ ABA_ANUAL = "variação reservas de ouro anual"
 ABA_PCT = "% de ouro nas reservas"
 
 TOTAL = "IMF World6 (may not sum to country total)"
+
+ABA_BALANCO = "Oferta e Demanda"
+ABA_PAISES = "Demanda por País"
+ABA_MINAS = "Mine production data"
+ABA_ESTOQUE = "Above-ground stocks"
 
 # Cores do tema do Office, as mesmas dos outros gráficos do site, mais seis
 # tons a mais: o gráfico do G20 tem vinte linhas e as catorze de sempre não
@@ -129,6 +152,57 @@ G20 = [
     ("Canada", "Canadá", CINZA),
 ]
 
+# O balanço do mercado: (coluna da aba, rótulo, cor). Essa aba está em pé, como
+# a Currency Comp, então a coluna é o nome que está na primeira linha. O balcão
+# fecha a conta e é o único que vai a negativo.
+DEMANDA = [("Joias", "Joias", AMARELO), ("Tecnologia", "Tecnologia", CIANO),
+           ("Investimento", "Investimento", AZUL),
+           ("Bancos Centrais", "Bancos centrais", VERDE), ("Balcão", "Balcão (OTC)", CINZA)]
+OFERTA = [("Mineração", "Mineração", LARANJA), ("Ouro Reciclado", "Ouro reciclado", ROXO)]
+DEMANDA_TOTAL, OFERTA_TOTAL = "Demanda por Ouro", "Oferta de Ouro"
+
+# Demanda por país: os dois blocos deitados da aba, pelo deslocamento da
+# primeira coluna de dados.
+BLOCOS_DEMANDA = [("joias", "Joias", 2), ("barras", "Barras e moedas", 70)]
+
+# Os grupos que ele pediu, na ordem em que ele pediu — e é essa a ordem da
+# pilha, de baixo para cima. Cada um é (rótulo, cor, linhas que somam, linhas
+# que subtraem): "Américas ex EUA" é a linha das Américas menos a dos Estados
+# Unidos, e "Ásia ex China" é a soma dos asiáticos que ficam fora da Grande
+# China. Juntos, os nove cobrem exatamente as linhas de topo do bloco, que a
+# aba soma em "Total above".
+GRUPOS_DEMANDA = [
+    ("Europa ex CIS", AZUL, [32], []),
+    ("Américas ex EUA", VERDE, [27], [28]),
+    ("Estados Unidos", AREIA, [28], []),
+    ("Türkiye", VERMELHO, [25], []),
+    ("Rússia", AMARELO, [26], []),
+    ("Oriente Médio", ROXO, [18], []),
+    ("Grande China", LARANJA, [6], []),
+    ("Ásia ex China", CIANO, [3, 4, 5, 10, 11, 12, 13, 14, 15, 16], []),
+    ("Oceania", ROSA, [17], []),
+]
+LINHA_RESIDUO, LINHA_MUNDO = 42, 43
+
+# Produção das minas: a linha de subtotal de cada região (as "linhas verdes" da
+# aba) e a do total do mundo.
+REGIOES_MINA = [(9, "América do Norte", AZUL), (24, "América Central e do Sul", VERDE),
+                (32, "Europa", ROXO), (51, "África", LARANJA), (59, "CIS", AMARELO),
+                (69, "Ásia", VERMELHO), (76, "Oceania", CIANO)]
+LINHA_MINA_TOTAL = 78
+
+# Estoque acima do solo: os quatro blocos que somam o total, e a abertura do
+# investimento privado em barras/moedas e ETFs.
+ESTOQUE = [(4, "Joias", AMARELO), (5, "Bancos centrais", VERDE),
+           (6, "Investimento privado", AZUL), (9, "Outros e balcão", CINZA)]
+ESTOQUE_ABERTO = [(4, "Joias", AMARELO), (5, "Bancos centrais", VERDE),
+                  (7, "Barras e moedas", AZUL), (8, "ETFs", PETROLEO),
+                  (9, "Outros e balcão", CINZA)]
+LINHA_ESTOQUE_TOTAL = 10
+
+FONTE_WGC = "World Gold Council, Metals Focus e Refinitiv GFMS"
+FONTE_ESTOQUE = "World Gold Council, Metals Focus, Refinitiv GFMS e ICE Benchmark Administration"
+
 TRIMESTRES = ["1º", "2º", "3º", "4º"]
 
 
@@ -137,13 +211,17 @@ TRIMESTRES = ["1º", "2º", "3º", "4º"]
 # --------------------------------------------------------------------------
 
 def trimestre(txt):
-    """"1999-Q1" e "Q1 2000", os dois jeitos que a planilha escreve, viram a
-    chave do eixo: "1999-Q1"."""
-    m = re.match(r"\s*(\d{4})\D*Q([1-4])\s*$", str(txt)) or re.match(r"\s*Q([1-4])\D+(\d{4})\s*$", str(txt))
+    """Os três jeitos que a planilha escreve um trimestre — "1999-Q1",
+    "Q1 2000" e "Q1'10" — viram a chave do eixo: "1999-Q1"."""
+    txt = str(txt)
+    m = re.match(r"\s*(\d{4})\D*Q([1-4])\s*$", txt)
+    if m:
+        return "%s-Q%s" % (m.group(1), m.group(2))
+    m = re.match(r"\s*Q([1-4])\D*(\d{2}|\d{4})\s*$", txt)
     if not m:
         return None
-    a, q = m.groups() if len(m.group(1)) == 4 else (m.group(2), m.group(1))
-    return "%s-Q%s" % (a, q)
+    ano = m.group(2)
+    return "%s-Q%s" % (ano if len(ano) == 4 else "20" + ano, m.group(1))
 
 
 def painel(pl, aba, linha_nomes, col_nomes, col_data):
@@ -165,18 +243,110 @@ def painel(pl, aba, linha_nomes, col_nomes, col_data):
     return fora
 
 
+def deitada(pl, aba, linha_datas, col0, n):
+    """Aba deitada (um trimestre por coluna) → {linha: {trim: valor}}.
+
+    Devolve pela **linha** da planilha, não pelo nome: na aba "Demanda por
+    País" o mesmo nome aparece nos dois blocos e os recuos fazem parte do
+    rótulo, então o que identifica a série sem ambiguidade é o número da
+    linha. Célula de texto é buraco, não zero."""
+    grade = pl.grade(aba)
+    datas = [(c, trimestre(grade[linha_datas].get(c))) for c in range(col0, col0 + n)]
+    faltam = [c for c, t in datas if not t]
+    if faltam:
+        raise RuntimeError("a aba %r não tem trimestre nas colunas %s" % (aba, faltam))
+    fora = {}
+    for r, linha in grade.items():
+        serie_ = {t: linha[c] for c, t in datas if isinstance(linha.get(c), float)}
+        if serie_:
+            fora[r] = serie_
+    return fora
+
+
+def anual(pl, aba, linha_anos, col0, n):
+    """Aba anual (um ano por coluna) → (rótulos dos anos, {linha: {índice: v}}).
+
+    O eixo aqui é de categorias, então a chave de cada ponto é a posição do ano
+    na lista — é assim que o `app.js` desenha uma coluna por rótulo."""
+    grade = pl.grade(aba)
+    cols = list(range(col0, col0 + n))
+    rotulos = []
+    for c in cols:
+        v = grade[linha_anos].get(c)
+        if isinstance(v, float):
+            rotulos.append("%d" % v)
+            continue
+        # o ano corrente vem como "YTD'26*"; aqui vira "2026", e quem chama
+        # decide se marca a coluna como ano pela metade
+        rot = str(v).replace("YTD'", "").replace("*", "").strip()
+        rotulos.append("20" + rot if len(rot) == 2 else rot)
+    fora = {}
+    for r, linha in grade.items():
+        serie_ = {str(i): linha[c] for i, c in enumerate(cols) if isinstance(linha.get(c), float)}
+        if serie_:
+            fora[r] = serie_
+    return rotulos, fora
+
+
+def soma(linhas, mais, menos=()):
+    """Soma de linhas da planilha, trimestre a trimestre. Um trimestre só entra
+    se **todas** as linhas pedidas existirem nele: metade de uma soma é um
+    número errado, não um número parcial."""
+    chaves = set()
+    for r in list(mais) + list(menos):
+        chaves |= set(linhas.get(r, {}))
+    fora = {}
+    for k in chaves:
+        if any(k not in linhas.get(r, {}) for r in menos):
+            continue
+        presentes = [r for r in mais if k in linhas.get(r, {})]
+        if not presentes:
+            continue
+        fora[k] = (sum(linhas[r][k] for r in presentes)
+                   - sum(linhas[r][k] for r in menos))
+    return fora
+
+
 def exige(painel_, nomes, aba):
     faltam = [n for n in nomes if not painel_.get(n)]
     if faltam:
         raise RuntimeError("a aba %r não tem %s" % (aba, ", ".join(faltam)))
 
 
+def confere(nome, partes, total, folga=0.05):
+    """As partes têm de somar o total, chave a chave.
+
+    Parte que não existe naquele ponto conta zero, que é o mesmo que o gráfico
+    desenha: sem dado, a faixa simplesmente não aparece na pilha. Pular esses
+    pontos deixaria a conferência de fora justamente onde ela é mais útil — a
+    Austrália, por exemplo, só tem dado a partir de 2021."""
+    difs = []
+    for k in sorted(total):
+        if all(k not in p for p in partes):
+            continue
+        difs.append((abs(sum(p.get(k, 0.0) for p in partes) - total[k]), k))
+    if not difs:
+        raise RuntimeError("nenhum ponto em comum para conferir %s" % nome)
+    pior, onde = max(difs)
+    print("  %-34s somam o total em %3d pontos, pior diferença %.2f t (%s)"
+          % (nome + ":", len(difs), pior, onde))
+    if pior > folga:
+        raise RuntimeError("%s não somam o total (pior %.2f t em %s)" % (nome, pior, onde))
+
+
 # --------------------------------------------------------------------------
 # montagem
 # --------------------------------------------------------------------------
 
+def ordem(chave):
+    """No eixo trimestral a chave é "2010-Q1" e a ordem alfabética serve; no de
+    categorias é o número da categoria, e aí "10" vem antes de "2" se a ordem
+    for de texto — a coluna sai no lugar errado."""
+    return (0, int(chave), "") if chave.isdigit() else (1, 0, chave)
+
+
 def serie(nome, cor, dados, casas=2, **extra):
-    pares = [[t, round(v, casas)] for t, v in sorted(dados.items())]
+    pares = [[t, round(v, casas)] for t, v in sorted(dados.items(), key=lambda kv: ordem(kv[0]))]
     return dict(nome=nome, cor=cor, dados=pares, **extra)
 
 
@@ -276,6 +446,108 @@ def grafico_pct(pct):
              "contém Alemanha, França e Itália, que aparecem à parte por serem membros também.")
 
 
+# --------------------------------------------------------------------------
+# o mercado de ouro: balanço, demanda por região, minas e estoque
+# --------------------------------------------------------------------------
+
+def grafico_balanco(linhas):
+    """O balanço trimestral do mercado, pelos dois lados. Os dois totais são o
+    mesmo número: o balcão fecha a conta."""
+    def lado(itens, chave_total, rot_total):
+        colunas = [serie(rot, cor, linhas[nome], 1, tipo="barra") for nome, rot, cor in itens]
+        total = serie(rot_total, BRANCO, linhas[chave_total], 1, largura=5, rotulo=True)
+        return colunas + [total]
+    return dict(
+        id="ouro-balanco",
+        titulo="Oferta e demanda de ouro",
+        subtitulo="Em toneladas, por trimestre",
+        unidade="t",
+        trimestral=True,
+        fonte=FONTE_WGC,
+        variantes=[
+            variante("Demanda", lado(DEMANDA, DEMANDA_TOTAL, "Demanda total"), selecao=True),
+            variante("Oferta", lado(OFERTA, OFERTA_TOTAL, "Oferta total"), selecao=True),
+        ],
+        nota="Oferta e demanda fecham no mesmo número em todo trimestre, por construção do "
+             "balanço: o balcão (OTC e outros) é o item que fecha a conta, e é por isso que ele é "
+             "o único que aparece abaixo do zero — ali o balcão devolveu metal ao mercado em vez "
+             "de absorvê-lo. A oferta é só mineração e ouro reciclado; o hedge dos produtores "
+             "está dentro do balcão. Investimento é barras, moedas e ETFs juntos.")
+
+
+def grafico_demanda_paises(blocos):
+    """Demanda de joias e de barras e moedas, repartida nos grupos que ele
+    pediu, com o resíduo da planilha fechando a pilha no total do mundo."""
+    variantes = []
+    for chave, rot, linhas in blocos:
+        colunas = [serie(nome, cor, soma(linhas, mais, menos), 1, tipo="barra")
+                   for nome, cor, mais, menos in GRUPOS_DEMANDA]
+        colunas.append(serie("Outros e variação de estoque", CINZA, linhas[LINHA_RESIDUO], 1,
+                             tipo="barra"))
+        total = serie("Demanda mundial", BRANCO, linhas[LINHA_MUNDO], 1, largura=5, rotulo=True)
+        variantes.append(variante(rot, colunas + [total], selecao=True))
+    return dict(
+        id="ouro-demanda-regioes",
+        titulo="Demanda de ouro por país e região",
+        subtitulo="Em toneladas, por trimestre",
+        unidade="t",
+        trimestral=True,
+        fonte=FONTE_WGC,
+        variantes=variantes,
+        nota="Cada cor é um país ou uma região da planilha, somados do jeito que eles se "
+             "encaixam sem contar duas vezes: \"Américas ex EUA\" é a linha das Américas menos a "
+             "dos Estados Unidos, \"Ásia ex China\" é a soma dos asiáticos que ficam fora da "
+             "Grande China (Índia, Paquistão, Sri Lanka, Japão, Indonésia, Malásia, Singapura, "
+             "Coreia do Sul, Tailândia e Vietnã), e Grande China é o continente mais Hong Kong e "
+             "Taiwan. Oceania é só a Austrália, a única da região na planilha, e ela só tem dado a "
+             "partir de 2021. A faixa cinza é o resíduo da própria planilha (\"other & stock "
+             "change\"), o que falta para os países listados fecharem no total do mundo — com ela "
+             "a pilha encosta exatamente na linha branca.")
+
+
+def grafico_minas(anos, linhas):
+    """Produção das minas por região — os subtotais de região da aba — com o
+    total do mundo em linha."""
+    colunas = [serie(nome, cor, linhas[r], 1, tipo="barra") for r, nome, cor in REGIOES_MINA]
+    total = serie("Produção mundial", BRANCO, linhas[LINHA_MINA_TOTAL], 1, largura=5, rotulo=True)
+    return dict(
+        id="ouro-mineracao",
+        titulo="Produção das minas de ouro",
+        subtitulo="Em toneladas, por ano",
+        unidade="t",
+        categorias=anos,
+        selecao=True,
+        fonte="Metals Focus, pelo World Gold Council",
+        series=colunas + [total],
+        nota="As sete regiões são os subtotais da própria aba, e somadas dão o total do mundo — "
+             "o script confere isso a cada rodada. CIS é a Comunidade de Estados Independentes "
+             "(Rússia, Uzbequistão, Cazaquistão, Quirguistão e outros). Turquia está dentro da "
+             "Ásia, como na planilha.")
+
+
+def grafico_estoque(anos, linhas):
+    """O estoque de ouro já extraído, por destino."""
+    def pilha(itens):
+        colunas = [serie(nome, cor, linhas[r], 0, tipo="barra") for r, nome, cor in itens]
+        return colunas + [serie("Estoque total", BRANCO, linhas[LINHA_ESTOQUE_TOTAL], 0,
+                                largura=5, rotulo=True)]
+    return dict(
+        id="ouro-estoque",
+        titulo="Estoque de ouro acima do solo",
+        subtitulo="Em toneladas, no fim de cada ano",
+        unidade="t",
+        categorias=anos,
+        fonte=FONTE_ESTOQUE,
+        variantes=[
+            variante("Por destino", pilha(ESTOQUE), selecao=True),
+            variante("Com o investimento aberto", pilha(ESTOQUE_ABERTO), selecao=True),
+        ],
+        nota="É todo o ouro já extraído, onde ele está hoje — não é produção do ano, é estoque "
+             "acumulado. Os quatro blocos somam o total; o segundo recorte abre o investimento "
+             "privado em barras e moedas e em ETFs. A última coluna é o ano corrente até o fim do "
+             "segundo trimestre de 2026, por isso ela é menor que um ano cheio.")
+
+
 def main():
     caminho = sys.argv[1] if len(sys.argv) > 1 else None
     if not caminho:
@@ -289,9 +561,9 @@ def main():
     moedas = painel(pl, ABA_MOEDAS, 1, 2, 1)
     exige(moedas, [n for n, _, _ in MOEDAS] + [PRECO_OURO], ABA_MOEDAS)
     acum = painel(pl, ABA_ACUM, 2, 2, 1)
-    anual = painel(pl, ABA_ANUAL, 2, 2, 1)
+    anual_ouro = painel(pl, ABA_ANUAL, 2, 2, 1)
     pct = painel(pl, ABA_PCT, 1, 3, 2)
-    for p, aba in ((acum, ABA_ACUM), (anual, ABA_ANUAL)):
+    for p, aba in ((acum, ABA_ACUM), (anual_ouro, ABA_ANUAL)):
         exige(p, [en for en, _, _ in ECONOMIAS] + [TOTAL], aba)
     exige(pct, [en for en, _, _ in G20], ABA_PCT)
 
@@ -305,24 +577,55 @@ def main():
     ref = max(moedas["Dólar americano"])
     print("  moedas: %d trimestres, %s a %s; ouro a US$ %.2f/oz em %s"
           % (len(moedas["Dólar americano"]), inicio, ref, preco[ref], ref))
-    soma = sum(moedas[n][ref] for n, _, _ in MOEDAS) / 1e6
+    total_moedas = sum(moedas[n][ref] for n, _, _ in MOEDAS) / 1e6
     print("  total em %s: US$ %.3f tri (dólar %.1f%%, ouro %.1f%%)"
-          % (ref, soma, moedas["Dólar americano"][ref] / 1e4 / soma, moedas["Ouro"][ref] / 1e4 / soma))
+          % (ref, total_moedas, moedas["Dólar americano"][ref] / 1e4 / total_moedas,
+             moedas["Ouro"][ref] / 1e4 / total_moedas))
     print("  ouro: total mundial %+.0f t desde 2000 e %+.0f t no último ano (%s)"
-          % (acum[TOTAL][max(acum[TOTAL])], anual[TOTAL][max(anual[TOTAL])], max(acum[TOTAL])))
+          % (acum[TOTAL][max(acum[TOTAL])], anual_ouro[TOTAL][max(anual_ouro[TOTAL])],
+             max(acum[TOTAL])))
+
+    # --- o mercado de ouro: balanço, demanda por região, minas e estoque ---
+    balanco = painel(pl, ABA_BALANCO, 1, 2, 1)
+    exige(balanco, [n for n, _, _ in DEMANDA + OFERTA] + [DEMANDA_TOTAL, OFERTA_TOTAL], ABA_BALANCO)
+    confere("balanço — demanda", [balanco[n] for n, _, _ in DEMANDA], balanco[DEMANDA_TOTAL], 0.2)
+    confere("balanço — oferta", [balanco[n] for n, _, _ in OFERTA], balanco[OFERTA_TOTAL], 0.2)
+    confere("balanço — oferta = demanda", [balanco[OFERTA_TOTAL]], balanco[DEMANDA_TOTAL])
+
+    blocos = []
+    for chave, rot, col0 in BLOCOS_DEMANDA:
+        linhas = deitada(pl, ABA_PAISES, 2, col0, 66)
+        grupos = [soma(linhas, mais, menos) for _, _, mais, menos in GRUPOS_DEMANDA]
+        confere("demanda %s — grupos" % chave, grupos + [linhas[LINHA_RESIDUO]],
+                linhas[LINHA_MUNDO], 0.2)
+        blocos.append((chave, rot, linhas))
+
+    anos_mina, minas = anual(pl, ABA_MINAS, 4, 2, 16)
+    confere("minas — regiões", [minas[r] for r, _, _ in REGIOES_MINA], minas[LINHA_MINA_TOTAL], 0.2)
+
+    anos_estoque, estoque = anual(pl, ABA_ESTOQUE, 3, 2, 17)
+    confere("estoque — destinos", [estoque[r] for r, _, _ in ESTOQUE], estoque[LINHA_ESTOQUE_TOTAL])
+    confere("estoque — investimento aberto", [estoque[r] for r, _, _ in ESTOQUE_ABERTO],
+            estoque[LINHA_ESTOQUE_TOTAL])
+    anos_estoque[-1] += "*"          # o ano corrente vai só até o fim do 2º trimestre
 
     secoes = [
         dict(titulo="Composição por moeda",
              graficos=[grafico_moedas(moedas, preco), grafico_participacao(moedas)]),
         dict(titulo="Reservas de ouro",
-             graficos=[grafico_variacao(acum, anual, "acum"), grafico_variacao(acum, anual, "anual"),
-                       grafico_pct(pct)]),
+             graficos=[grafico_variacao(acum, anual_ouro, "acum"),
+                       grafico_variacao(acum, anual_ouro, "anual"), grafico_pct(pct)]),
+        dict(titulo="Oferta e demanda",
+             graficos=[grafico_balanco(balanco), grafico_demanda_paises(blocos)]),
+        dict(titulo="Produção e estoque",
+             graficos=[grafico_minas(anos_mina, minas), grafico_estoque(anos_estoque, estoque)]),
     ]
     doc = dict(
         atualizado=datetime.date.today().isoformat(),
         referencia="%s-%02d" % (ref[:4], int(ref[-1]) * 3),
-        fonte="FMI (IFS e COFER), World Gold Council, ICE Benchmark Administration e bancos centrais",
-        categoria="Reservas internacionais",
+        fonte="FMI (IFS e COFER), World Gold Council, Metals Focus, Refinitiv GFMS, "
+              "ICE Benchmark Administration e bancos centrais",
+        categoria="Ouro e reservas internacionais",
         secoes=secoes,
     )
     with open(SAIDA, "w", encoding="utf-8") as f:
