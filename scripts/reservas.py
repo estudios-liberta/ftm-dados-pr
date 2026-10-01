@@ -484,7 +484,8 @@ def grafico_ouro_tesouros(moedas, tesouros):
              "mercado. O ouro é a planilha do FMI; os Treasuries são a série %s do Financial "
              "Accounts (Z.1) do Fed — títulos do Tesouro americano em poder de instituições "
              "oficiais estrangeiras, que são bancos centrais e fundos soberanos. Por isso a linha "
-             "verde não é a parte em Treasuries da faixa do dólar: o numerador conta instituições "
+             "dos Treasuries não é a parte em Treasuries da faixa do dólar: o numerador conta "
+             "instituições "
              "oficiais que podem estar fora do COFER, e a faixa do dólar inclui muito mais que "
              "Treasuries (agências, depósitos, aplicações de curto prazo). As duas linhas são "
              "comparáveis entre si, por dividirem o mesmo total, não somáveis." % SERIE_TESOUROS)
