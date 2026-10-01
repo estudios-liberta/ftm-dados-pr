@@ -236,8 +236,8 @@ def tres_graficos(r, mensal, doze_pct, pct_ano, anos):
     % do PIB e o acumulado no ano comparando os anos."""
     bi_12 = {m: v / 1000 for m, v in acumulado_12(mensal).items()}
     bi_mes = {m: v / 1000 for m, v in mensal.items()}
-    quem = "O resultado nominal é o primário menos os juros nominais da dívida — " \
-           "é o que de fato muda o estoque da dívida. " if r["id"] == "nominal" else ""
+    quem = "O resultado nominal é o primário menos os juros nominais da dívida. " \
+        if r["id"] == "nominal" else ""
     return [
         dict(id="fiscal-%s-bi" % r["id"],
              titulo=r["titulo"],
@@ -247,9 +247,8 @@ def tres_graficos(r, mensal, doze_pct, pct_ano, anos):
                  variante("No mês", [serie("No mês", AZUL, bi_mes, 1, tipo="barra")], "bi"),
              ],
              nota=quem + "Governo federal, Banco Central, estados, municípios e estatais, fora "
-                  "Petrobras e Eletrobras (série %d do SGS). Em R$ correntes: R$ 1 bilhão de 2002 "
-                  "não é o mesmo de hoje — para comparar ao longo do tempo, o gráfico seguinte, em "
-                  "%% do PIB." % r["mensal"]),
+                  "Petrobras e Eletrobras (série %d do SGS). Valores correntes, sem correção pela "
+                  "inflação." % r["mensal"]),
         dict(id="fiscal-%s-pib" % r["id"],
              titulo="Resultado %s em %% do PIB" % r["nome"],
              subtitulo="Acumulado em 12 meses — positivo é superávit, negativo é déficit",
@@ -302,11 +301,10 @@ def grafico_esferas(esferas, fed_sem_inss, inss, consolidado):
         ],
         nota="Colunas empilhadas: quem está em superávit sobe a partir do zero, quem está em "
              "déficit desce — a altura de cada cor é o quanto aquela esfera põe ou tira, e a linha "
-             "branca é o consolidado, a soma das duas pilhas. Nos botões dá para tirar e pôr cada "
-             "esfera (a última não desliga). As sete esferas somam o "
-             "consolidado: o script confere isso a cada rodada e a diferença máxima em 297 meses "
-             "é de R$ 20 mil, puro arredondamento. O INSS entra dentro do Governo Federal (séries "
-             "7853 e 7854, que somadas dão a 4640); o segundo recorte separa os dois. Petrobras e "
+             "branca é o consolidado, a soma das duas pilhas. As sete esferas somam o consolidado: "
+             "o script confere isso a cada rodada e a diferença máxima em 297 meses é de R$ 20 "
+             "mil, puro arredondamento. O INSS entra dentro do Governo Federal (séries 7853 e "
+             "7854, que somadas dão a 4640); o segundo recorte separa os dois. Petrobras e "
              "Eletrobras estão fora das estatais desde 2009.")
 
 
@@ -370,9 +368,7 @@ def graficos_divida(saldo, pib12, pct_2008, pct_ate2007):
              nota="A razão dívida/PIB sobe quando a linha branca fica acima da azul e cai quando "
                   "fica abaixo — é a mesma conta do gráfico anterior, vista pelo numerador e pelo "
                   "denominador. Os dois são valores correntes, então a inflação infla os dois "
-                  "lados: em 2021 o PIB nominal cresceu 18,4%% e a dívida 9,7%%, e a razão caiu "
-                  "sem que nada tivesse sido pago. A dívida é a da metodologia até 2007 (série "
-                  "%d)." % DIVIDA_SALDO),
+                  "lados. A dívida é a da metodologia até 2007 (série %d)." % DIVIDA_SALDO),
     ]
 
 

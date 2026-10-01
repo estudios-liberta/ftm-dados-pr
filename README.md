@@ -8,11 +8,11 @@ Gráficos do chart book desenhados no navegador, sem build: `index.html` +
 | **IPCA** | `dados/ipca.json` | Baixados **sozinhos** todo dia do Banco Central (SGS) e do IBGE (SIDRA) |
 | **Fiscal** | `dados/fiscal.json` | Baixados **sozinhos** do SGS do Banco Central (resultado primário do setor público consolidado) |
 | **Dívida Pública** | `dados/divida.json` | Gerados do Relatório Mensal da Dívida do Tesouro (o `.xlsx` em `dados/`) |
-| **Reservas internacionais** | `dados/reservas.json` | Gerados da planilha de reservas do FMI e do World Gold Council (o `.xlsx` em `dados/`) |
 | **Tesouro Direto** | `dados/tesouro-direto.json` | Baixados **sozinhos** do dado aberto do Tesouro Transparente (taxas diárias desde 2004) |
+| **Reservas internacionais** | `dados/reservas.json` | Gerados da planilha de reservas do FMI e do World Gold Council (o `.xlsx` em `dados/`) |
 
 - **Menu na lateral** — uma categoria retrátil por arquivo de dados (IPCA,
-  Fiscal, Dívida Pública, Reservas internacionais, Tesouro Direto), com as
+  Fiscal, Dívida Pública, Tesouro Direto, Reservas internacionais), com as
   subcategorias dentro e os
   gráficos dentro delas. A
   página tem a mesma árvore, e **tudo abre fechado**: a tela inicial é o índice
@@ -214,10 +214,10 @@ planilha com quatro abas trimestrais. Para atualizar, trocar o `.xlsx` e rodar
 
 | Aba | Cartão | Recortes |
 |---|---|---|
-| Currency Comp | Reservas internacionais por moeda — colunas empilhadas em US$ trilhões, com o preço do ouro na escala da direita | — |
+| Currency Comp | Reservas internacionais por moeda — colunas empilhadas em US$ trilhões, com o preço do ouro na escala da direita | seleção por série (dá para tirar o preço do ouro, e aí o eixo da direita some) |
 | Currency Comp | Participação de cada moeda nas reservas | seleção por moeda |
-| Variação … acum | Variação acumulada das reservas de ouro, em toneladas | principais economias / total mundial |
-| variação … anual | Variação anual das reservas de ouro, em toneladas | principais economias / total mundial |
+| Variação … acum | Variação acumulada das reservas de ouro, em toneladas | países selecionados / total mundial |
+| variação … anual | Variação anual das reservas de ouro, em toneladas | países selecionados / total mundial |
 | % de ouro nas reservas | Ouro nas reservas internacionais, em % das reservas de cada país | G20, com seleção |
 
 Três coisas que o script resolve e vale saber:
@@ -241,7 +241,9 @@ Mensal da Dívida, que fica em `dados/`. Todo mês:
 
 1. baixar o novo *Relatório da Dívida `<Mês><Ano>`.xlsx* no site do Tesouro
    Nacional (Relatório Mensal da Dívida → anexos) e jogar em `dados/`;
-2. `python3 scripts/divida.py` (ele pega o `.xlsx` mais novo da pasta);
+2. `python3 scripts/divida.py` (ele pega o `.xlsx` mais novo da pasta cujo nome
+   case com `Relat*` ou `*dívida*` — a pasta também guarda a planilha das
+   reservas, então o filtro importa);
 3. commit de `dados/` e push.
 
 `scripts/divida.py` também só usa a biblioteca padrão. Uma função por gráfico,
@@ -365,6 +367,14 @@ linha da grade sem virar número quebrado. Com uma única série ali, os número
 direita saem na cor dela. `eixo: {alvo: n}` pede n marcas no eixo da esquerda
 (o padrão, 8, daria passo 5 numa faixa de 0 a 18 e desperdiçaria metade da
 grade).
+
+A **ordem das categorias** na página e no menu é a ordem da lista `FONTES` no
+`app.js`, não a ordem alfabética.
+
+As **notas abaixo dos gráficos** são só de metodologia: o que a série é, de que
+código ou aba ela vem, o que a conta faz e onde ela não dá para comparar. Nada
+de leitura do gráfico, de o que os números querem dizer nem de instrução de uso
+dos botões — isso a tela já mostra.
 
 `legenda: false` quer dizer **pano de fundo**: a série é desenhada, mas fica
 fora da legenda e da caixa do mouse — é o que faz o feixe cinza de "todos os

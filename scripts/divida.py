@@ -469,8 +469,7 @@ def custo(p):
     externa = [(21, "DPFe", BRANCO, dict(rotulo=True))]
     MENSAL = "Custo médio mensal, em % a.a."
     NOTA_MENSAL = ("O custo de um mês só é anualizado, então oscila muito — na dívida externa, "
-                   "com a variação cambial do mês. Para a tendência, veja o mesmo gráfico "
-                   "acumulado em 12 meses.")
+                   "com a variação cambial do mês.")
     ACUM = "Custo médio acumulado em 12 meses, em % a.a."
     saida = [
         cartao("divida-custo-mensal-dpmfi", "Custo da dívida interna (DPMFi)", MENSAL, g41, m41, interna, nota=NOTA_MENSAL),
@@ -490,12 +489,19 @@ def custo(p):
 # --------------------------------------------------------------------------
 
 def achar_planilha():
-    """O .xlsx mais novo de dados/ — assim, no mês que vem, basta jogar o novo
-    relatório na pasta."""
-    achados = sorted(glob.glob(os.path.join(RAIZ, "dados", "*.xlsx")), key=os.path.getmtime)
+    """O Relatório da Dívida mais novo de dados/ — assim, no mês que vem, basta
+    jogar o novo relatório na pasta.
+
+    O nome tem de casar com "Relat…" ou com "…dívida…": desde que a pasta
+    passou a guardar também a planilha das reservas, pegar simplesmente o .xlsx
+    mais novo traria o arquivo errado."""
+    achados = set()
+    for padrao in ("Relat*.xlsx", "*ívida*.xlsx", "*ivida*.xlsx"):
+        achados.update(glob.glob(os.path.join(RAIZ, "dados", padrao)))
     if not achados:
-        raise SystemExit("Nenhum .xlsx em dados/ — baixe o Relatório Mensal da Dívida e coloque lá.")
-    return achados[-1]
+        raise SystemExit("Nenhum Relatório da Dívida em dados/ — baixe o Relatório Mensal da "
+                         "Dívida e coloque lá (ou passe o caminho do .xlsx como argumento).")
+    return max(achados, key=os.path.getmtime)
 
 
 def main():

@@ -196,16 +196,15 @@ def grafico_moedas(moedas, preco):
         subtitulo="Estoque em US$ trilhões, no fim de cada trimestre; o ouro a preço de mercado",
         unidade="usd-tri", unidade2="usd-oz",
         trimestral=True,
+        selecao=True,
         eixo=dict(alvo=10),
         series=colunas + [linha],
         nota="São as reservas **alocadas** — a parte que os bancos centrais informam ao FMI moeda "
              "por moeda — mais o ouro, avaliado ao preço do fim do trimestre. A altura de cada cor "
-             "é o estoque daquela moeda; a linha branca é o preço do ouro, na escala da direita, e "
-             "é ela que explica quase toda a subida da faixa amarela: a tonelagem cresce devagar, "
-             "o preço é que foi de US$ 290 a mais de US$ 4.500 a onça. A série começa em 2000, o "
-             "primeiro trimestre em que a planilha traz o ouro. Dólar canadense e dólar "
-             "australiano só aparecem em 2012 e o yuan em 2016 — antes disso estavam em \"outras "
-             "moedas\", que por isso encolhe de uma vez.")
+             "é o estoque daquela moeda e a linha branca é o preço do ouro, que corre na escala da "
+             "direita. A série começa em 2000, o primeiro trimestre em que a planilha traz o ouro. "
+             "Dólar canadense e dólar australiano só ganham coluna própria em 2012 e o yuan em "
+             "2016: antes disso estavam dentro de \"outras moedas\".")
 
 
 def grafico_participacao(moedas):
@@ -225,12 +224,9 @@ def grafico_participacao(moedas):
         selecao=True,
         series=series,
         nota="É o gráfico anterior dividido pelo total de cada trimestre — o denominador é a soma "
-             "das dez faixas, ouro incluído. Nos botões dá para tirar e pôr cada moeda (a última "
-             "não desliga). O dólar sai de 61% em 2000 para 42%, mas quem ocupou o lugar não foi "
-             "o euro, que saiu de 14% e está em 15%: foi o ouro, que foi de 14% a 27% quase só "
-             "por preço, e o bolo das moedas pequenas, de 2,5% a 10%. Cuidado com 2012 e 2016, "
-             "quando o dólar canadense, o australiano e o yuan saem de \"outras moedas\" e passam "
-             "a ter faixa própria.")
+             "das dez faixas, ouro incluído. Em 2012 e 2016 o dólar canadense, o australiano e o "
+             "yuan saem de \"outras moedas\" e passam a ter faixa própria: o degrau naquelas três "
+             "linhas é mudança de classificação, não de composição.")
 
 
 def grafico_variacao(acum, anual, qual):
@@ -248,17 +244,14 @@ def grafico_variacao(acum, anual, qual):
         unidade="t",
         trimestral=True,
         variantes=[
-            variante("Principais economias", paises, selecao=True),
+            variante("Países selecionados", paises, selecao=True),
             variante("Total mundial", mundo),
         ],
-        nota="Quem comprou e quem vendeu, em metal — o preço não entra aqui. A Rússia e a China "
-             "somam mais de 3.800 t desde 2000; a Zona do Euro vendeu 1.692 t, quase tudo no "
-             "acordo de venda de ouro dos bancos centrais europeus, que valeu até 2009; os Estados "
-             "Unidos não mexeram em nada (−5 t em 26 anos) e o Brasil, que tinha vendido 84 t em "
-             "2000, comprou 43 t no último ano. No recorte mundial, o total é o agregado do FMI: a "
-             "outra coluna de total da planilha soma as colunas de país e quebra nos trimestres "
-             "recentes, onde a maioria ainda não reportou. Nos botões do primeiro recorte dá para "
-             "tirar e pôr cada economia.")
+        nota="Variação da tonelagem de metal: o preço do ouro não entra nesta conta. O total "
+             "mundial é o agregado do próprio FMI — a outra coluna de total da planilha soma as "
+             "colunas de país e quebra nos trimestres recentes, em que a maioria ainda não "
+             "reportou, e por isso não é usada aqui. Ela também não fecha com a soma dos países, "
+             "que varia com quem reportou em cada trimestre.")
 
 
 def grafico_pct(pct):
@@ -276,13 +269,11 @@ def grafico_pct(pct):
         selecao=True,
         series=series,
         eixo=dict(alvo=10),
-        nota="Os vinte membros do G20, do que tem mais ouro para o que tem menos — nos botões dá "
-             "para tirar e pôr cada um (o último não desliga). A União Europeia, que tem cadeira "
-             "no G20, entra como Zona do Euro, o agregado que a planilha traz (ele já contém "
-             "Alemanha, França e Itália, que aparecem à parte por serem membros também). A conta "
-             "é o ouro a preço de mercado sobre o total das reservas, então a fatia sobe quando o "
-             "país compra metal e também quando o ouro se valoriza — a subida geral desde 2022 é "
-             "dos dois efeitos juntos.")
+        nota="A conta é o ouro a preço de mercado sobre o total das reservas do país: a fatia "
+             "sobe tanto quando ele compra metal quanto quando o ouro se valoriza. São os vinte "
+             "membros do G20, do que tem mais ouro para o que tem menos. A União Europeia, que tem "
+             "cadeira no G20, entra como Zona do Euro, o agregado que a planilha traz — ele já "
+             "contém Alemanha, França e Itália, que aparecem à parte por serem membros também.")
 
 
 def main():
