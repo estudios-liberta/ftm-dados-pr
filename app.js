@@ -69,7 +69,7 @@
   // Um arquivo por categoria (IPCA, Dívida Pública…). Cada um traz categoria,
   // fonte, mês de referência e as suas seções; um que faltar é só ignorado.
   var FONTES = ["dados/ipca.json", "dados/fiscal.json", "dados/divida.json",
-                "dados/tesouro-direto.json"];
+                "dados/reservas.json", "dados/tesouro-direto.json"];
   var docs = [];
   var logoSvg = null;   // {viewBox, nos}
 
@@ -128,7 +128,15 @@
     bi: { eixo: function (v, passo) { return nf(casasDoPasso(passo)).format(v); },
           valor: function (v) { return "R$ " + nf(1).format(v) + " bi"; } },
     anos: { eixo: function (v, passo) { return nf(Math.max(1, casasDoPasso(passo))).format(v); },
-            valor: function (v) { return nf(2).format(v) + " anos"; } }
+            valor: function (v) { return nf(2).format(v) + " anos"; } },
+    // reservas internacionais: estoque em trilhões de dólares, preço do ouro
+    // por onça troy e reserva de ouro em toneladas
+    "usd-tri": { eixo: function (v, passo) { return nf(casasDoPasso(passo)).format(v); },
+                 valor: function (v) { return "US$ " + nf(2).format(v) + " tri"; } },
+    "usd-oz": { eixo: function (v, passo) { return nf(casasDoPasso(passo)).format(v); },
+                valor: function (v) { return "US$ " + nf(0).format(v) + "/oz"; } },
+    t: { eixo: function (v, passo) { return nf(casasDoPasso(passo)).format(v); },
+         valor: function (v) { return nf(1).format(v) + " t"; } }
   };
   function unidade(g) { return UNIDADES[g.unidade] || UNIDADES["%"]; }
 
@@ -137,13 +145,19 @@
   function idxDia(iso) { var p = iso.split("-"); return Math.round(Date.UTC(+p[0], +p[1] - 1, +p[2]) / 86400000); }
   function dataDeIdx(i) { return new Date(i * 86400000); }
   function mesDeIdx(i) { return Math.floor(i / 12) + "-" + ("0" + (i % 12 + 1)).slice(-2); }
+  // eixo trimestral: a chave é "2000-Q1" e o índice é o trimestre corrido
+  function idxTri(chave) { var p = chave.split("-Q"); return (+p[0]) * 4 + (+p[1] - 1); }
+  function rotuloTriLongo(i) { return (i % 4 + 1) + "\u00ba trimestre de " + Math.floor(i / 4); }
   function rotuloMesCurto(i) { return MESES[i % 12] + "/" + String(Math.floor(i / 12)).slice(-2); }
   function rotuloMesLongo(i) { return MESES_LONGOS[i % 12] + " de " + Math.floor(i / 12); }
 
   // Eixo X: normalmente é o tempo (um passo por mês); com "categorias" no
   // gráfico, é uma lista de rótulos (o acumulado do cronograma de vencimentos).
   function idxDe(g, chave) {
-    return g.categorias ? +chave : g.diario ? idxDia(chave) : idxMes(chave);
+    if (g.categorias) return +chave;
+    if (g.diario) return idxDia(chave);
+    if (g.trimestral) return idxTri(chave);
+    return idxMes(chave);
   }
   function rotuloX(g, i, longo) {
     if (g.categorias) return g.categorias[i] || "";
@@ -152,11 +166,13 @@
       if (!longo) return MESES[d.getUTCMonth()] + "/" + String(d.getUTCFullYear()).slice(-2);
       return d.getUTCDate() + " de " + MESES_LONGOS[d.getUTCMonth()].toLowerCase() + " de " + d.getUTCFullYear();
     }
+    // trimestre: no eixo vai só o ano (a marca é sempre o 1\u00ba trimestre)
+    if (g.trimestral) return longo ? rotuloTriLongo(i) : String(Math.floor(i / 4));
     return longo ? rotuloMesLongo(i) : rotuloMesCurto(i);
   }
   // Quantos passos do eixo cabem num ano — o que separa "mês" de "dia" nas
   // contas de período (Tudo / 10 anos / 5 anos…).
-  function passosPorAno(g) { return g.diario ? 365.25 : 12; }
+  function passosPorAno(g) { return g.diario ? 365.25 : g.trimestral ? 4 : 12; }
 
   // Um cartão pode ter variantes (agência, moeda, "% ou R$"…): o gráfico que
   // vale é a base com a variante escolhida por cima. O objeto fica guardado
@@ -218,12 +234,43 @@
     if (eixo.min !== undefined) baixo = eixo.min;
     if (eixo.max !== undefined) alto = eixo.max;
     if (alto - baixo <= 0) alto = baixo + 1;
-    var passo = passoBonito(alto - baixo, 8);
+    // "alvo" é quantas marcas o gráfico quer: o padrão (8) dá passo 5 numa
+    // faixa de 0 a 18 e desperdiça metade da grade
+    var passo = passoBonito(alto - baixo, eixo.alvo || 8);
     var min = eixo.min !== undefined ? eixo.min : Math.floor(baixo / passo + 1e-9) * passo;
     var max = eixo.max !== undefined ? eixo.max : Math.ceil(alto / passo - 1e-9) * passo;
     var ticks = [];
     for (var k = 0; min + k * passo <= max + passo / 2; k++) ticks.push(+(min + k * passo).toFixed(6));
     return { min: min, max: max, passo: passo, ticks: ticks };
+  }
+
+  // Eixo da direita (o preço do ouro ao lado do estoque de reservas). Para as
+  // duas grades coincidirem, ele tem de ter o **mesmo número de intervalos**
+  // que o da esquerda — então o passo não pode vir de um alvo de marcas, e sim
+  // do primeiro degrau redondo que fecha a faixa em n intervalos. A lista de
+  // degraus é mais rica que a do eixo principal (entram 1,5, 2,5, 3, 6…):
+  // aqui o que importa é fechar a conta sem número quebrado.
+  var DEGRAUS_DIR = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+  function escalaCasada(mn, mx, eixo, n) {
+    eixo = eixo || {};
+    var baixo = mn, alto = mx;
+    if (eixo.zero !== false && mn >= 0 && mn <= mx * 0.6) baixo = 0;
+    if (eixo.min !== undefined) baixo = eixo.min;
+    if (eixo.max !== undefined) alto = eixo.max;
+    if (alto - baixo <= 0) alto = baixo + 1;
+    var base = Math.pow(10, Math.floor(Math.log10((alto - baixo) / n)) - 1), degraus = [];
+    for (var d = 0; d < 4; d++) {
+      for (var c = 0; c < DEGRAUS_DIR.length; c++) degraus.push(DEGRAUS_DIR[c] * base * Math.pow(10, d));
+    }
+    var passo = degraus[degraus.length - 1], min = 0;
+    for (var i = 0; i < degraus.length; i++) {
+      var p = degraus[i];
+      var m = eixo.min !== undefined ? eixo.min : Math.floor(baixo / p + 1e-9) * p;
+      if (m + n * p >= alto - 1e-9) { passo = p; min = m; break; }
+    }
+    var ticks = [];
+    for (var k = 0; k <= n; k++) ticks.push(+(min + k * passo).toFixed(6));
+    return { min: min, max: min + n * passo, passo: passo, ticks: ticks };
   }
 
   // ---------- legenda ----------
@@ -272,11 +319,17 @@
     var d0 = cartao.inicioIdx === null ? ini : Math.max(ini, cartao.inicioIdx), d1 = fim + 1;
     var vis = todas.map(function (pts) { return pts.filter(function (p) { return p.i >= d0; }); });
 
-    // extremos: barras entram empilhadas (positivas e negativas em separado)
+    // extremos: barras entram empilhadas (positivas e negativas em separado).
+    // Série marcada com "dir" não entra aqui: ela mede noutra unidade e tem
+    // escala própria, no eixo da direita.
     var mn = Infinity, mx = -Infinity, pilhaPos = {}, pilhaNeg = {};
+    var mnD = Infinity, mxD = -Infinity, naDireita = g.series.filter(function (s) { return s.dir; });
     g.series.forEach(function (s, k) {
       vis[k].forEach(function (p) {
-        if (s.tipo === "barra") {
+        if (s.dir) {
+          if (p.v < mnD) mnD = p.v;
+          if (p.v > mxD) mxD = p.v;
+        } else if (s.tipo === "barra") {
           if (p.v >= 0) pilhaPos[p.i] = (pilhaPos[p.i] || 0) + p.v;
           else pilhaNeg[p.i] = (pilhaNeg[p.i] || 0) + p.v;
         } else {
@@ -287,22 +340,32 @@
     });
     Object.keys(pilhaPos).forEach(function (i) { mx = Math.max(mx, pilhaPos[i]); mn = Math.min(mn, 0); });
     Object.keys(pilhaNeg).forEach(function (i) { mn = Math.min(mn, pilhaNeg[i]); });
+    if (mn === Infinity) { mn = 0; mx = 1; }
     var esc = escalaY(mn, mx, g.eixo);
+    var escDir = mnD === Infinity ? null : escalaCasada(mnD, mxD, g.eixo2, esc.ticks.length - 1);
+    var F2 = escDir ? (UNIDADES[g.unidade2] || F) : F;
+    // de que eixo cada série é, para o rótulo e a caixa do mouse
+    function fDe(s) { return s.dir && escDir ? F2 : F; }
 
     var tw = Math.max.apply(null, esc.ticks.map(function (t) { return largura(F.eixo(t, esc.passo), L.tick); }));
+    var twD = escDir ? Math.max.apply(null, escDir.ticks.map(function (t) {
+      return largura(F2.eixo(t, escDir.passo), L.tick);
+    })) : 0;
     var rotulos = [];
     g.series.forEach(function (s, k) {
       if (!s.rotulo || !vis[k].length) return;
       var u = vis[k][vis[k].length - 1];
-      rotulos.push({ s: s, p: u, txt: F.valor(u.v) });
+      rotulos.push({ s: s, p: u, txt: fDe(s).valor(u.v) });
     });
     var rw = Math.max.apply(null, [0].concat(rotulos.map(function (r) { return largura(r.txt, L.rotulo, "bold"); })));
     L.x0 = 26 + tw + 14;
-    L.x1 = L.W - (22 + Math.max(L.eixoDuplo ? tw + 14 : 0, rw + L.rotuloX + 10));
+    L.x1 = L.W - (22 + Math.max(escDir ? twD + 14 : L.eixoDuplo ? tw + 14 : 0, rw + L.rotuloX + 10));
     L.y0 = y0;
     var pw = L.x1 - L.x0, ph = L.y1 - L.y0;
     var X = function (i) { return L.x0 + (i - d0) / (d1 - d0) * pw; };
     var Y = function (v) { return L.y1 - (v - esc.min) / (esc.max - esc.min) * ph; };
+    var YD = escDir ? function (v) { return L.y1 - (v - escDir.min) / (escDir.max - escDir.min) * ph; } : Y;
+    var yDe = function (s) { return s.dir && escDir ? YD : Y; };
     var pxMes = pw / (d1 - d0);
 
     var svg = el("svg", {
@@ -317,7 +380,7 @@
     // Onde cada rótulo do último ponto vai ficar, afastando os que se
     // encostam. Fica antes do eixo porque o eixo da direita só imprime o
     // número onde não houver rótulo — e o que vale é a posição final dele.
-    var rotY = rotulos.map(function (r) { return Math.min(Math.max(Y(r.p.v), L.y0), L.y1); });
+    var rotY = rotulos.map(function (r) { return Math.min(Math.max(yDe(r.s)(r.p.v), L.y0), L.y1); });
     var ordem = rotulos.map(function (r, k) { return { r: r, y: rotY[k] }; }).sort(function (a, b) { return a.y - b.y; });
     var passoRot = L.rotulo * 1.08;
     for (var a = 1; a < ordem.length; a++) {
@@ -337,7 +400,20 @@
       }));
       var at = { y: y, "font-size": L.tick, fill: pal.eixo, "dominant-baseline": "central" };
       svg.appendChild(texto(F.eixo(t, esc.passo), Object.assign({ x: L.x0 - 14, "text-anchor": "end" }, at)));
-      if (L.eixoDuplo && ordem.every(function (o) { return Math.abs(o.y - y) > L.rotulo * 0.9; })) {
+      var livre = ordem.every(function (o) { return Math.abs(o.y - y) > L.rotulo * 0.9; });
+      if (escDir) {
+        // a mesma marca, na outra unidade: as duas escalas têm o mesmo número
+        // de intervalos, então cada número da direita cai numa linha da grade.
+        // Com uma única série ali, o número sai na cor dela — é o que diz a
+        // quem a escala pertence.
+        var tD = escDir.ticks[esc.ticks.indexOf(t)];
+        if (tD !== undefined && livre) {
+          svg.appendChild(texto(F2.eixo(tD, escDir.passo), Object.assign({}, at, {
+            x: L.x1 + 14, "text-anchor": "start",
+            fill: naDireita.length === 1 ? corNoTema(naDireita[0].cor, pal) : pal.eixo
+          })));
+        }
+      } else if (L.eixoDuplo && livre) {
         svg.appendChild(texto(F.eixo(t, esc.passo), Object.assign({ x: L.x1 + 14, "text-anchor": "start" }, at)));
       }
     });
@@ -392,6 +468,24 @@
           "dominant-baseline": "hanging", transform: "rotate(" + L.xRot + " " + (cxd + 4) + " " + (L.y1 + 16) + ")"
         }));
       });
+    } else if (g.trimestral) {
+      // o 1\u00ba trimestre de cada ano, rareando de 1, 2, 3, 5 ou 10 anos
+      // conforme couber; o r\u00f3tulo \u00e9 o ano, curto, e fica em p\u00e9 no lugar de deitado
+      var passoT = 4, degrausT = [4, 8, 12, 20, 40, 80], folga = largura("2000", L.xlab) * 1.4;
+      while (pxMes * passoT < folga) {
+        var proxT = degrausT.filter(function (n) { return n > passoT; })[0];
+        if (!proxT) break;
+        passoT = proxT;
+      }
+      for (var ti = d0; ti < d1; ti++) {
+        if (ti % passoT !== 0) continue;
+        var cxt = X(ti + 0.5);
+        svg.appendChild(el("line", { x1: cxt, x2: cxt, y1: L.y1, y2: L.y1 + 7, stroke: pal.zero, "stroke-width": 1.5 }));
+        svg.appendChild(texto(rotuloX(g, ti), {
+          x: cxt, y: L.y1 + 14, "font-size": L.xlab, fill: pal.eixo,
+          "text-anchor": "middle", "dominant-baseline": "hanging"
+        }));
+      }
     } else {
       // janeiro de cada ano; trimestral em janela curta
       var passoX = g.passoX || 12;
@@ -427,7 +521,7 @@
         if (!p.v) return;
         var b = p.v >= 0 ? baseP : baseN, antes = b[p.i] || 0, depois = antes + p.v;
         b[p.i] = depois;
-        var ya = Y(antes), yb = Y(depois);
+        var ya = yDe(s)(antes), yb = yDe(s)(depois);
         area.appendChild(el("rect", {
           x: X(p.i + 0.5) - bw / 2, y: Math.min(ya, yb), width: bw, height: Math.max(0.6, Math.abs(yb - ya)), fill: cor
         }));
@@ -439,9 +533,9 @@
     var buracoMax = g.buracoMax || (g.diario ? 6 : 1);
     g.series.forEach(function (s, k) {
       if (s.tipo === "barra" || !vis[k].length) return;
-      var d = "", ant = null;
+      var d = "", ant = null, YS = yDe(s);
       vis[k].forEach(function (p) {
-        d += (ant === null || p.i - ant > buracoMax ? "M" : "L") + X(p.i + 0.5).toFixed(1) + " " + Y(p.v).toFixed(1);
+        d += (ant === null || p.i - ant > buracoMax ? "M" : "L") + X(p.i + 0.5).toFixed(1) + " " + YS(p.v).toFixed(1);
         ant = p.i;
       });
       var w = s.largura || L.linha, op = s.opacidade || null;
@@ -454,7 +548,7 @@
 
     ordem.forEach(function (o) {
       var cor = corNoTema(o.r.s.cor, pal);
-      var px = X(o.r.p.i + 0.5), py = Y(o.r.p.v), lx = L.x1 + L.rotuloX;
+      var px = X(o.r.p.i + 0.5), py = yDe(o.r.s)(o.r.p.v), lx = L.x1 + L.rotuloX;
       svg.appendChild(el("polyline", {
         points: px + "," + py + " " + (lx - 4) + "," + o.y, fill: "none", stroke: cor,
         "stroke-width": 1.5, opacity: 0.9
@@ -506,12 +600,12 @@
       svg.appendChild(gl);
     }
 
-    return { svg: svg, L: L, pal: pal, X: X, Y: Y, d0: d0, d1: d1, vis: vis, esc: esc };
+    return { svg: svg, L: L, pal: pal, X: X, Y: Y, yDe: yDe, fDe: fDe, d0: d0, d1: d1, vis: vis, esc: esc };
   }
 
   // ---------- passar o mouse ----------
   function ligarHover(cartao, desenho) {
-    var svg = desenho.svg, L = desenho.L, pal = desenho.pal, g = graficoDe(cartao), F = unidade(g);
+    var svg = desenho.svg, L = desenho.L, pal = desenho.pal, g = graficoDe(cartao);
     var camada = el("g", { "pointer-events": "none" });
     var alvo = el("rect", { x: L.x0, y: L.y0, width: L.x1 - L.x0, height: L.y1 - L.y0, fill: "transparent" });
     svg.appendChild(alvo);
@@ -546,7 +640,7 @@
       }));
       var titulo = rotuloX(g, i, true);
       var w = Math.max(largura(titulo, fs, "bold"), Math.max.apply(null, linhas.map(function (l) {
-        return largura(l.s.nome + "  " + F.valor(l.v), fs) + fs * 1.1;
+        return largura(l.s.nome + "  " + desenho.fDe(l.s).valor(l.v), fs) + fs * 1.1;
       }))) + pad * 2;
       var h = (linhas.length + 1) * fs * 1.3 + pad;
       var bx = x + 22; if (bx + w > L.x1) bx = x - 22 - w;
@@ -557,9 +651,9 @@
         var ty = by + pad + fs * 0.8 + (k + 1) * fs * 1.3;
         camada.appendChild(el("rect", { x: bx + pad, y: ty - fs * 0.62, width: fs * 0.7, height: fs * 0.7, rx: 2, fill: corNoTema(l.s.cor, pal) }));
         camada.appendChild(texto(l.s.nome, { x: bx + pad + fs * 1.1, y: ty, "font-size": fs, fill: pal.suave }));
-        camada.appendChild(texto(F.valor(l.v), { x: bx + w - pad, y: ty, "font-size": fs, "font-weight": "bold", fill: pal.texto, "text-anchor": "end" }));
+        camada.appendChild(texto(desenho.fDe(l.s).valor(l.v), { x: bx + w - pad, y: ty, "font-size": fs, "font-weight": "bold", fill: pal.texto, "text-anchor": "end" }));
         if (desenho.vis[g.series.indexOf(l.s)] && l.s.tipo !== "barra") {
-          camada.appendChild(el("circle", { cx: x, cy: desenho.Y(l.v), r: 6, fill: corNoTema(l.s.cor, pal), stroke: pal.bg, "stroke-width": 2 }));
+          camada.appendChild(el("circle", { cx: x, cy: desenho.yDe(l.s)(l.v), r: 6, fill: corNoTema(l.s.cor, pal), stroke: pal.bg, "stroke-width": 2 }));
         }
       });
     }
@@ -1222,7 +1316,7 @@
       var n = s.nome.replace(/;/g, ",");
       return cols.filter(function (t, j) { return j < k && t.nome === s.nome; }).length ? n + " (2)" : n;
     });
-    var linhas = [(g.categorias ? "faixa" : g.diario ? "data" : "mes") + ";" + nomes.join(";")];
+    var linhas = [(g.categorias ? "faixa" : g.diario ? "data" : g.trimestral ? "trimestre" : "mes") + ";" + nomes.join(";")];
     Object.keys(meses).sort().forEach(function (m) {
       linhas.push((g.categorias ? g.categorias[+m] : m) + ";" + mapas.map(function (mp) {
         return mp[m] === undefined ? "" : String(mp[m]).replace(".", ",");

@@ -8,10 +8,12 @@ Gráficos do chart book desenhados no navegador, sem build: `index.html` +
 | **IPCA** | `dados/ipca.json` | Baixados **sozinhos** todo dia do Banco Central (SGS) e do IBGE (SIDRA) |
 | **Fiscal** | `dados/fiscal.json` | Baixados **sozinhos** do SGS do Banco Central (resultado primário do setor público consolidado) |
 | **Dívida Pública** | `dados/divida.json` | Gerados do Relatório Mensal da Dívida do Tesouro (o `.xlsx` em `dados/`) |
+| **Reservas internacionais** | `dados/reservas.json` | Gerados da planilha de reservas do FMI e do World Gold Council (o `.xlsx` em `dados/`) |
 | **Tesouro Direto** | `dados/tesouro-direto.json` | Baixados **sozinhos** do dado aberto do Tesouro Transparente (taxas diárias desde 2004) |
 
 - **Menu na lateral** — uma categoria retrátil por arquivo de dados (IPCA,
-  Fiscal, Dívida Pública, Tesouro Direto), com as subcategorias dentro e os
+  Fiscal, Dívida Pública, Reservas internacionais, Tesouro Direto), com as
+  subcategorias dentro e os
   gráficos dentro delas. A
   página tem a mesma árvore, e **tudo abre fechado**: a tela inicial é o índice
   dos gráficos.
@@ -204,6 +206,34 @@ Duas coisas que o dado impõe:
   2016-2017, a de 20 anos do IPCA+ antes de 2010. Nesses períodos não havia
   papel em oferta naquele prazo.
 
+## As reservas internacionais (planilha do FMI)
+
+Também **não** se atualiza sozinha: vem de `dados/reservas de ouro.xlsx`, uma
+planilha com quatro abas trimestrais. Para atualizar, trocar o `.xlsx` e rodar
+`python3 scripts/reservas.py` (ele pega o mais novo que casar com `*reserva*`).
+
+| Aba | Cartão | Recortes |
+|---|---|---|
+| Currency Comp | Reservas internacionais por moeda — colunas empilhadas em US$ trilhões, com o preço do ouro na escala da direita | — |
+| Currency Comp | Participação de cada moeda nas reservas | seleção por moeda |
+| Variação … acum | Variação acumulada das reservas de ouro, em toneladas | principais economias / total mundial |
+| variação … anual | Variação anual das reservas de ouro, em toneladas | principais economias / total mundial |
+| % de ouro nas reservas | Ouro nas reservas internacionais, em % das reservas de cada país | G20, com seleção |
+
+Três coisas que o script resolve e vale saber:
+
+- **a composição começa em 2000**, não em 1999, que é onde a planilha abre: a
+  coluna do ouro só existe a partir de 2000-Q1, e sem ela o denominador da
+  participação é outro (o dólar daria 71% em 1999 contra 61% em 2000 só por
+  causa disso);
+- **dólar canadense, dólar australiano e yuan** só ganham coluna própria em
+  2012-Q4 e 2016-Q4. Antes estavam em "outras moedas", que por isso encolhe de
+  uma vez — está dito na nota do gráfico;
+- **o total mundial é o agregado do FMI**, não a coluna "Total above" da
+  planilha. Aquela é a soma das colunas de país e quebra nos trimestres
+  recentes, em que a maioria ainda não reportou: ela marca −6.027 t em 2026-Q2,
+  num trimestre em que o mundo comprou ouro.
+
 ## A dívida pública (Relatório Mensal da Dívida)
 
 Essa parte **não** se atualiza sozinha: vem do `.xlsx` dos anexos do Relatório
@@ -310,20 +340,31 @@ python3 -m http.server 8000   # http://localhost:8000
 ```
 index.html  styles.css  app.js
 assets/     fundo.jpg (fundo dos slides do FtM), logo-ftm.svg, favicon.svg
-dados/      ipca.json, fiscal.json, divida.json, tesouro-direto.json (gerados)
-            + o .xlsx do Tesouro
+dados/      ipca.json, fiscal.json, divida.json, reservas.json,
+            tesouro-direto.json (gerados) + o .xlsx do Tesouro e o das reservas
 scripts/    atualizar.py (IPCA), fiscal.py (resultado primário) e
-            tesouro_direto.py (taxas), automáticos; divida.py (dívida, do
-            .xlsx, na mão)
+            tesouro_direto.py (taxas), automáticos; divida.py (dívida) e
+            reservas.py (reservas), dos .xlsx, na mão
 .github/workflows/atualizar.yml
 ```
 
 O `app.js` é genérico: lê os arquivos de `dados/` e desenha o que vier. Séries
-em linha ou em barra empilhada, unidade `%`, `bi` (R$ bilhões) ou `anos`, eixo
-X mensal, diário (`diario`) ou por categoria (`categorias`), e cartões com
-`variantes`. Por série ainda dá para pedir `largura`, `opacidade`, `traco`,
-`rotulo` (o valor na ponta da linha) e `legenda: false`. Com `selecao: true` no
-gráfico, cada série ganha um botão para ligar e desligar.
+em linha ou em barra empilhada, unidade `%`, `bi` (R$ bilhões), `anos`,
+`usd-tri`, `usd-oz` ou `t` (toneladas), eixo X mensal, diário (`diario`),
+trimestral (`trimestral`, chave `"2000-Q1"`) ou por categoria (`categorias`), e
+cartões com `variantes`. Por série ainda dá para pedir `largura`, `opacidade`,
+`traco`, `rotulo` (o valor na ponta da linha) e `legenda: false`. Com
+`selecao: true` no gráfico, cada série ganha um botão para ligar e desligar.
+
+**Eixo da direita**: a série marcada com `dir: true` sai da escala da esquerda e
+ganha a sua, na unidade de `unidade2` (é o preço do ouro ao lado do estoque de
+reservas). Para as duas grades coincidirem, a escala da direita é obrigada a ter
+o **mesmo número de intervalos** da esquerda, e o passo dela sai de uma lista de
+degraus mais rica (1,5, 2,5, 3, 6…) — assim cada número da direita cai numa
+linha da grade sem virar número quebrado. Com uma única série ali, os números da
+direita saem na cor dela. `eixo: {alvo: n}` pede n marcas no eixo da esquerda
+(o padrão, 8, daria passo 5 numa faixa de 0 a 18 e desperdiçaria metade da
+grade).
 
 `legenda: false` quer dizer **pano de fundo**: a série é desenhada, mas fica
 fora da legenda e da caixa do mouse — é o que faz o feixe cinza de "todos os
