@@ -159,7 +159,7 @@ DEMANDA = [("Joias", "Joias", AMARELO), ("Tecnologia", "Tecnologia", CIANO),
            ("Investimento", "Investimento", AZUL),
            ("Bancos Centrais", "Bancos centrais", VERDE), ("Balcão", "Balcão (OTC)", CINZA)]
 OFERTA = [("Mineração", "Mineração", LARANJA), ("Ouro Reciclado", "Ouro reciclado", ROXO)]
-DEMANDA_TOTAL, OFERTA_TOTAL = "Demanda por Ouro", "Oferta de Ouro"
+DEMANDA_TOTAL, OFERTA_TOTAL, PRECO_BALANCO = "Demanda por Ouro", "Oferta de Ouro", "Preço"
 
 # Demanda por país: os dois blocos deitados da aba, pelo deslocamento da
 # primeira coluna de dados.
@@ -286,6 +286,24 @@ def anual(pl, aba, linha_anos, col0, n):
         if serie_:
             fora[r] = serie_
     return rotulos, fora
+
+
+def num_tri(chave):
+    a, q = chave.split("-Q")
+    return int(a) * 4 + int(q) - 1
+
+
+def media_movel(d, n=4):
+    """Média dos últimos n trimestres. Janela com buraco não vira média: se os
+    n trimestres não forem seguidos, aquele ponto fica de fora."""
+    ks = sorted(d)
+    fora = {}
+    for i in range(n - 1, len(ks)):
+        janela = ks[i - n + 1:i + 1]
+        if num_tri(janela[-1]) - num_tri(janela[0]) != n - 1:
+            continue
+        fora[ks[i]] = sum(d[k] for k in janela) / n
+    return fora
 
 
 def soma(linhas, mais, menos=()):
@@ -475,6 +493,39 @@ def grafico_balanco(linhas):
              "está dentro do balcão. Investimento é barras, moedas e ETFs juntos.")
 
 
+def grafico_balanco_media(linhas):
+    """O mesmo balanço alisado em quatro trimestres, contra o preço.
+
+    Oferta e demanda são o mesmo número em toda a série (a maior diferença
+    entre as duas colunas da planilha é de 2 décimos de trilionésimo de
+    tonelada, ruído de ponto flutuante), então as duas médias dão a mesma
+    linha. A oferta entra pontilhada e mais fina, por cima: assim dá para ver
+    que ela está ali, em vez de a demanda simplesmente escondê-la."""
+    demanda = media_movel(linhas[DEMANDA_TOTAL])
+    oferta = media_movel(linhas[OFERTA_TOTAL])
+    return dict(
+        id="ouro-balanco-media",
+        titulo="Oferta e demanda de ouro, e o preço",
+        subtitulo="Média dos quatro trimestres até cada ponto, em toneladas; o preço no fim do trimestre",
+        unidade="t", unidade2="usd-oz",
+        trimestral=True,
+        fonte=FONTE_WGC + " e ICE Benchmark Administration",
+        series=[
+            serie("Demanda total", BRANCO, demanda, 1, largura=8, rotulo=True),
+            serie("Oferta total", CIANO, oferta, 1, largura=3, traco="pontilhado", rotulo=True),
+            serie("Preço do ouro (eixo da direita)", AMARELO, linhas[PRECO_BALANCO], 2,
+                  dir=True, largura=5),
+        ],
+        nota="As duas linhas de toneladas são a mesma linha: no balanço do mercado a oferta é "
+             "igual à demanda em todo trimestre, por construção — o balcão (OTC) é o item que "
+             "fecha a conta. A diferença entre as duas colunas da planilha não passa de 2×10⁻¹³ t "
+             "em 66 trimestres, que é erro de arredondamento do Excel. A oferta vai pontilhada e "
+             "mais fina por cima da demanda só para ficar visível. O que o gráfico mostra, então, "
+             "é o tamanho do mercado — alisado em quatro trimestres para tirar a sazonalidade das "
+             "joias — contra o preço, que corre na escala da direita e não é alisado: é o preço do "
+             "fim de cada trimestre.")
+
+
 def grafico_demanda_paises(blocos):
     """Demanda de joias e de barras e moedas, repartida nos grupos que ele
     pediu, com o resíduo da planilha fechando a pilha no total do mundo."""
@@ -587,7 +638,8 @@ def main():
 
     # --- o mercado de ouro: balanço, demanda por região, minas e estoque ---
     balanco = painel(pl, ABA_BALANCO, 1, 2, 1)
-    exige(balanco, [n for n, _, _ in DEMANDA + OFERTA] + [DEMANDA_TOTAL, OFERTA_TOTAL], ABA_BALANCO)
+    exige(balanco, [n for n, _, _ in DEMANDA + OFERTA]
+          + [DEMANDA_TOTAL, OFERTA_TOTAL, PRECO_BALANCO], ABA_BALANCO)
     confere("balanço — demanda", [balanco[n] for n, _, _ in DEMANDA], balanco[DEMANDA_TOTAL], 0.2)
     confere("balanço — oferta", [balanco[n] for n, _, _ in OFERTA], balanco[OFERTA_TOTAL], 0.2)
     confere("balanço — oferta = demanda", [balanco[OFERTA_TOTAL]], balanco[DEMANDA_TOTAL])
@@ -616,7 +668,8 @@ def main():
              graficos=[grafico_variacao(acum, anual_ouro, "acum"),
                        grafico_variacao(acum, anual_ouro, "anual"), grafico_pct(pct)]),
         dict(titulo="Oferta e demanda",
-             graficos=[grafico_balanco(balanco), grafico_demanda_paises(blocos)]),
+             graficos=[grafico_balanco(balanco), grafico_balanco_media(balanco),
+                       grafico_demanda_paises(blocos)]),
         dict(titulo="Produção e estoque",
              graficos=[grafico_minas(anos_mina, minas), grafico_estoque(anos_estoque, estoque)]),
     ]

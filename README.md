@@ -220,9 +220,16 @@ planilha com oito abas. Para atualizar, trocar o `.xlsx` e rodar
 | variação … anual | Variação anual das reservas de ouro, em toneladas | países selecionados / total mundial |
 | % de ouro nas reservas | Ouro nas reservas internacionais, em % das reservas de cada país | G20, com seleção |
 | Oferta e Demanda | Oferta e demanda de ouro — colunas empilhadas por componente, total em linha | demanda / oferta |
+| Oferta e Demanda | Oferta e demanda de ouro, e o preço — média de 4 trimestres em linha, preço na escala da direita | — |
 | Demanda por País | Demanda de ouro por país e região — nove grupos empilhados mais o resíduo, total em linha | joias / barras e moedas |
 | Mine production data | Produção das minas de ouro, por região | seleção por região |
 | Above-ground stocks | Estoque de ouro acima do solo, por destino | por destino / com o investimento aberto |
+
+No cartão da média de 4 trimestres, **as duas linhas de toneladas são a mesma
+linha**: no balanço do mercado a oferta é igual à demanda em todo trimestre, e
+a diferença entre as duas colunas da planilha não passa de 2×10⁻¹³ t em 66
+trimestres. A oferta vai pontilhada e mais fina por cima da demanda só para
+ficar visível, em vez de sumir debaixo dela.
 
 As quatro abas do mercado de ouro (as de baixo na tabela) têm somas que **têm
 de fechar**, e o script confere todas a cada rodada, abortando se alguma passar
