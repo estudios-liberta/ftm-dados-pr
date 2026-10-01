@@ -219,7 +219,7 @@ planilha com oito abas. Para atualizar, trocar o `.xlsx` e rodar
 |---|---|---|
 | Currency Comp | Reservas internacionais por moeda — colunas empilhadas em US$ trilhões, com o preço do ouro na escala da direita | seleção por série (dá para tirar o preço do ouro, e aí o eixo da direita some) |
 | Currency Comp | Participação de cada moeda nas reservas | seleção por moeda |
-| Currency Comp + FRED | Ouro e Treasuries nas reservas internacionais, os dois sobre o mesmo total | — |
+| Currency Comp + FRED | Ouro e Treasuries nas reservas internacionais, os dois sobre o mesmo total | com os EUA / exc. EUA |
 | Variação … acum | Variação acumulada das reservas de ouro, em toneladas | países selecionados / total mundial |
 | variação … anual | Variação anual das reservas de ouro, em toneladas | países selecionados / total mundial |
 | % de ouro nas reservas | Ouro nas reservas internacionais, em % das reservas de cada país | G20, com seleção |
@@ -259,6 +259,16 @@ em Treasuries da faixa do dólar: o numerador conta instituições oficiais que
 podem estar fora do COFER, e a faixa do dólar é bem mais que Treasuries. As duas
 linhas do cartão são comparáveis entre si por dividirem o mesmo total, não
 somáveis.
+
+O recorte **exc. EUA** tira o total de reservas e o ouro dos Estados Unidos do
+numerador e do denominador, pelas colunas U e V da aba. Duas conferências rodam
+a cada rodada e abortam se falharem: a série do FRED contra a coluna O, e a
+razão dos Treasuries sem os EUA contra a coluna R — as duas batem exatamente.
+**A coluna S da aba não é usada.** A fórmula dela desconta do denominador o
+*ouro* dos EUA (coluna V) em vez do *total* deles (coluna U), e lê essa célula
+uma linha abaixo; reproduz-se exatamente como
+`(ouro − ouroEUA[t]) / (total − ouroEUA[t+1])` nos 106 trimestres. Dá 20,65% no
+último trimestre contra 22,25% da conta descrita. Vale a conta descrita.
 
 Três coisas que o script resolve e vale saber:
 

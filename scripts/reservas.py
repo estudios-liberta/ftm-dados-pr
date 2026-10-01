@@ -210,6 +210,14 @@ FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=%s"
 SERIE_TESOUROS = "BOGZ1FL263061130Q"
 FONTE_TESOUROS = "Federal Reserve (Financial Accounts, Z.1, via FRED) e FMI (COFER)"
 
+# O bloco à direita da aba Currency Comp, que ele montou: data na coluna Q e,
+# ao lado, os Treasuries em US$ (O), a razão deles sobre as reservas sem os EUA
+# (R) e o total e o ouro dos Estados Unidos (U e V). A coluna S, do ouro sem os
+# EUA, não é lida — ver a conferência em `grafico_ouro_tesouros`.
+EX_EUA_DATA = 17
+EX_EUA_TESOUROS, EX_EUA_TESOUROS_PCT = 15, 18
+EX_EUA_TOTAL, EX_EUA_OURO = 21, 22
+
 FONTE_WGC = "World Gold Council, Metals Focus e Refinitiv GFMS"
 FONTE_ESTOQUE = "World Gold Council, Metals Focus, Refinitiv GFMS e ICE Benchmark Administration"
 
@@ -424,6 +432,24 @@ def grafico_moedas(moedas, preco):
              "2016: antes disso estavam dentro de \"outras moedas\".")
 
 
+def bloco_ex_eua(pl):
+    """O bloco dos Estados Unidos da aba Currency Comp → {trimestre: {...}}."""
+    grade = pl.grade(ABA_MOEDAS)
+    fora = {}
+    for r in sorted(grade):
+        chave = trimestre(grade[r].get(EX_EUA_DATA))
+        if not chave:
+            continue
+        linha = {nome: grade[r].get(col) for nome, col in
+                 (("tesouros", EX_EUA_TESOUROS), ("tesouros_pct", EX_EUA_TESOUROS_PCT),
+                  ("eua_total", EX_EUA_TOTAL), ("eua_ouro", EX_EUA_OURO))}
+        if all(isinstance(v, float) for v in linha.values()):
+            fora[chave] = linha
+    if not fora:
+        raise RuntimeError("não achei o bloco dos EUA na aba %r" % ABA_MOEDAS)
+    return fora
+
+
 def total_das_reservas(moedas):
     """O denominador dos gráficos de participação: a soma das dez faixas da
     composição, com o ouro a preço de mercado."""
@@ -453,17 +479,56 @@ def grafico_participacao(moedas):
              "linhas é mudança de classificação, não de composição.")
 
 
-def grafico_ouro_tesouros(moedas, tesouros):
-    """Os dois grandes ativos de reserva lado a lado: o ouro e os Treasuries em
-    mãos oficiais, cada um sobre o mesmo total."""
+def grafico_ouro_tesouros(moedas, tesouros, eua):
+    """Os dois grandes ativos de reserva lado a lado — o ouro e os Treasuries em
+    mãos oficiais —, cada um sobre o mesmo total, com e sem os Estados Unidos.
+
+    Tirar os EUA muda o retrato dos dois lados: eles têm a maior reserva de
+    ouro do mundo e quase nenhuma reserva em moeda estrangeira, e obviamente
+    não guardam Treasuries como reserva. Sem eles o ouro pesa menos e os
+    Treasuries pesam mais.
+
+    DUAS CONFERÊNCIAS contra o que ele montou na planilha, a cada rodada:
+    a série do FRED contra a coluna O, e a razão dos Treasuries contra a
+    coluna R. As duas têm de bater exatamente.
+
+    A coluna S, do ouro sem os EUA, **não** é usada: a fórmula dela desconta do
+    denominador o *ouro* dos EUA (coluna V) em vez do *total* deles (coluna U),
+    e ainda lê essa célula uma linha abaixo. Dá 20,65% no último trimestre
+    contra 22,25% da conta que ele descreveu. Aqui vale a conta descrita.
+    """
     totais = total_das_reservas(moedas)
     comuns = sorted(t for t in totais if t in tesouros)
     if not comuns:
         raise RuntimeError("nenhum trimestre em comum entre a planilha e a série do FRED")
-    print("  ouro × Treasuries: %d trimestres, %s a %s; em %s o ouro é %.1f%% e os Treasuries %.1f%%"
-          % (len(comuns), comuns[0], comuns[-1], comuns[-1],
-             moedas["Ouro"][comuns[-1]] / totais[comuns[-1]] * 100,
-             tesouros[comuns[-1]] / totais[comuns[-1]] * 100))
+    com_eua = [t for t in comuns if t in eua]
+
+    dif = max(abs(tesouros[t] - eua[t]["tesouros"]) for t in com_eua)
+    print("  Treasuries: FRED bate com a coluna O em %d trimestres, diferença máxima US$ %.0f mi"
+          % (len(com_eua), dif))
+    if dif > 1.0:
+        raise RuntimeError("a série do FRED não bate com a coluna da planilha (máx %.0f)" % dif)
+
+    ex_total = {t: totais[t] - eua[t]["eua_total"] for t in com_eua}
+    tes_ex = {t: tesouros[t] / ex_total[t] * 100 for t in com_eua}
+    ouro_ex = {t: (moedas["Ouro"][t] - eua[t]["eua_ouro"]) / ex_total[t] * 100 for t in com_eua}
+    dif = max(abs(tes_ex[t] / 100 - eua[t]["tesouros_pct"]) for t in com_eua)
+    print("  Treasuries sem os EUA: bate com a coluna R em %d trimestres, diferença máxima %.2e"
+          % (len(com_eua), dif))
+    if dif > 1e-9:
+        raise RuntimeError("a razão dos Treasuries não bate com a coluna R (máx %.3e)" % dif)
+    ult = com_eua[-1]
+    print("  em %s: com os EUA ouro %.1f%% e Treasuries %.1f%%; sem os EUA ouro %.1f%% e Treasuries %.1f%%"
+          % (ult, moedas["Ouro"][ult] / totais[ult] * 100, tesouros[ult] / totais[ult] * 100,
+             ouro_ex[ult], tes_ex[ult]))
+
+    def par(ouro, tes):
+        return [
+            serie("Ouro", AMARELO, ouro, 2, rotulo=True, largura=8),
+            # azul, não o verde do dólar dos outros gráficos: ao lado do
+            # amarelo do ouro o verde-oliva vira quase o mesmo tom
+            serie("Treasuries em mãos oficiais", AZUL, tes, 2, rotulo=True, largura=8),
+        ]
     return dict(
         id="reservas-ouro-tesouros",
         titulo="Ouro e Treasuries nas reservas internacionais",
@@ -471,13 +536,10 @@ def grafico_ouro_tesouros(moedas, tesouros):
         unidade="%",
         trimestral=True,
         fonte=FONTE_TESOUROS,
-        series=[
-            serie("Ouro", AMARELO, {t: moedas["Ouro"][t] / totais[t] * 100 for t in comuns}, 2,
-                  rotulo=True, largura=8),
-            # azul, não o verde do dólar dos outros gráficos: ao lado do
-            # amarelo do ouro o verde-oliva vira quase o mesmo tom
-            serie("Treasuries em mãos oficiais", AZUL,
-                  {t: tesouros[t] / totais[t] * 100 for t in comuns}, 2, rotulo=True, largura=8),
+        variantes=[
+            variante("Com os EUA", par({t: moedas["Ouro"][t] / totais[t] * 100 for t in comuns},
+                                       {t: tesouros[t] / totais[t] * 100 for t in comuns})),
+            variante("Exc. EUA", par(ouro_ex, tes_ex)),
         ],
         nota="Os dois numeradores vêm de lugares diferentes e o denominador é o mesmo dos dois "
              "gráficos anteriores: a soma das dez faixas da composição, com o ouro a preço de "
@@ -485,10 +547,13 @@ def grafico_ouro_tesouros(moedas, tesouros):
              "Accounts (Z.1) do Fed — títulos do Tesouro americano em poder de instituições "
              "oficiais estrangeiras, que são bancos centrais e fundos soberanos. Por isso a linha "
              "dos Treasuries não é a parte em Treasuries da faixa do dólar: o numerador conta "
-             "instituições "
-             "oficiais que podem estar fora do COFER, e a faixa do dólar inclui muito mais que "
-             "Treasuries (agências, depósitos, aplicações de curto prazo). As duas linhas são "
-             "comparáveis entre si, por dividirem o mesmo total, não somáveis." % SERIE_TESOUROS)
+             "instituições oficiais que podem estar fora do COFER, e a faixa do dólar inclui muito "
+             "mais que Treasuries (agências, depósitos, aplicações de curto prazo). As duas linhas "
+             "são comparáveis entre si, por dividirem o mesmo total, não somáveis. No recorte "
+             "\"exc. EUA\" saem do numerador e do denominador o total de reservas e o ouro dos "
+             "Estados Unidos: eles têm a maior reserva de ouro do mundo e quase nada em moeda "
+             "estrangeira, e não guardam Treasuries como reserva, então sem eles o ouro pesa menos "
+             "e os Treasuries pesam mais." % SERIE_TESOUROS)
 
 
 def grafico_variacao(acum, anual, qual):
@@ -712,6 +777,7 @@ def main():
 
     print("Baixando a série %s do FRED…" % SERIE_TESOUROS)
     tesouros = fred(SERIE_TESOUROS)
+    ex_eua = bloco_ex_eua(pl)
 
     # --- o mercado de ouro: balanço, demanda por região, minas e estoque ---
     balanco = painel(pl, ABA_BALANCO, 1, 2, 1)
@@ -741,7 +807,7 @@ def main():
     secoes = [
         dict(titulo="Composição por moeda",
              graficos=[grafico_moedas(moedas, preco), grafico_participacao(moedas),
-                       grafico_ouro_tesouros(moedas, tesouros)]),
+                       grafico_ouro_tesouros(moedas, tesouros, ex_eua)]),
         dict(titulo="Reservas de ouro",
              graficos=[grafico_variacao(acum, anual_ouro, "acum"),
                        grafico_variacao(acum, anual_ouro, "anual"), grafico_pct(pct)]),
