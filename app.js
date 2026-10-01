@@ -1203,13 +1203,41 @@
     menu.appendChild(bc);
 
     function fechar() { menu.hidden = true; botao.setAttribute("aria-expanded", "false"); }
+    // O menu nasce alinhado à direita do botão. Quando a fileira de escolhas do
+    // cartão quebra, o botão "Baixar" vai para o começo da linha de baixo — e
+    // aí os 260px dele caíam para fora do cartão e sumiam atrás da lateral da
+    // página. Depois de aberto o menu é medido e, se escapar do cartão para um
+    // lado, vira para o outro; se nem assim couber, encosta na borda. Para
+    // baixo ele passa do cartão à vontade, como todo menu.
+    function encaixar() {
+      menu.style.left = menu.style.right = "";
+      var cartao = caixa.closest(".card");
+      var lim = cartao ? cartao.getBoundingClientRect() : null;
+      var janela = document.documentElement.clientWidth;
+      var esq = Math.max(4, lim ? lim.left : 0);
+      var dir = Math.min(janela - 4, lim ? lim.right : janela);
+      var r = menu.getBoundingClientRect();
+      if (r.left < esq || r.right > dir) {
+        menu.style.right = "auto";
+        menu.style.left = "0";
+        r = menu.getBoundingClientRect();
+        if (r.left < esq || r.right > dir) {
+          // não cabe de nenhum lado: encosta na borda esquerda do limite, para
+          // o começo do menu (onde está o seletor de tamanho) ficar visível
+          menu.style.left = (esq - caixa.getBoundingClientRect().left) + "px";
+          r = menu.getBoundingClientRect();
+        }
+      }
+    }
     botao.addEventListener("click", function (e) {
       e.stopPropagation();
       var abrir = menu.hidden;
       document.querySelectorAll(".menu").forEach(function (m) { m.hidden = true; });
       menu.hidden = !abrir;
       botao.setAttribute("aria-expanded", String(abrir));
+      if (abrir) encaixar();
     });
+    window.addEventListener("resize", function () { if (!menu.hidden) encaixar(); });
     document.addEventListener("click", function (e) { if (!caixa.contains(e.target)) fechar(); });
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") fechar(); });
     caixa.appendChild(botao);
@@ -1411,14 +1439,25 @@
       .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   }
 
+  // Uma linha por categoria — até onde o dado vai, quando foi atualizado e de
+  // onde veio. Com cinco categorias isso virava um bloco de texto maior que o
+  // menu, então fica dentro de um retrátil "Fontes", fechado como o resto da
+  // página.
   function montarRodape(lista) {
     var rodape = document.getElementById("rodape");
+    var caixa = html("details", { "class": "fontes" });
+    var rotulo = html("summary", { "class": "fontes-rotulo" });
+    rotulo.appendChild(seta());
+    rotulo.appendChild(html("span", { texto: "Fontes" }));
+    caixa.appendChild(rotulo);
     lista.forEach(function (dados) {
       var at = dados.atualizado.split("-"), ref = idxMes(dados.referencia);
-      rodape.appendChild(html("p", { style: "margin:0 0 6px",
+      caixa.appendChild(html("p", {
         texto: dados.categoria + " até " + rotuloMesLongo(ref).toLowerCase() +
-               ", atualizado em " + at[2] + "/" + at[1] + "/" + at[0] + ". Fonte: " + dados.fonte + "." }));
+               ", atualizado em " + at[2] + "/" + at[1] + "/" + at[0] + ". Fonte: " + dados.fonte + "."
+      }));
     });
+    rodape.appendChild(caixa);
   }
 
   // Monta uma categoria inteira na página: categoria > seções > gráficos,

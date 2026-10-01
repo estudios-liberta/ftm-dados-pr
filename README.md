@@ -27,8 +27,11 @@ Gráficos do chart book desenhados no navegador, sem build: `index.html` +
   **Baixar PNG** do visor sai com as anotações dentro.
 - **Modo escuro/claro** — botão na lateral; o escuro é o padrão e usa o fundo de
   notas dos slides do FtM.
+- **Fontes** — o pé da lateral (até onde vai cada categoria, quando foi
+  atualizada e de onde veio) fica num retrátil "Fontes", fechado como o resto.
 - **Baixar** — em cada gráfico, no tema da tela, em PNG, JPG, PDF ou SVG
-  editável, e o CSV com todas as séries. Tamanhos (todos em 2×, para sair
+  editável, e o CSV com todas as séries. O menu é medido ao abrir e vira de
+  lado se não couber no cartão. Tamanhos (todos em 2×, para sair
   nítido): apresentação 16:9 (3840×2160) e Instagram feed 4:5 (2160×2700),
   feed 3:4 (2160×2880), quadrado 1:1 (2160×2160) e Stories 9:16 (2160×3840,
   com o gráfico dentro da área segura, longe das barras do app).
