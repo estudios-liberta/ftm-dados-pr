@@ -93,7 +93,7 @@ details[open] > summary > .seta, details[open] > .nav-rotulo > .seta, details[op
 .fontes p:last-child { margin-bottom: 4px; }
 
 /* ---------- conteúdo ---------- */
-.conteudo { padding: 30px 26px 60px; max-width: 1400px; }
+.conteudo { padding: 30px 26px 60px; max-width: 1260px; }   /* o gráfico é 16:9: a largura daqui é que decide a altura dele */
 .sobrancelha { margin: 0; color: var(--accent); font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase; }
 .titulo-pagina { margin: 4px 0 6px; font-size: 30px; }
 .lede { margin: 0 0 18px; color: var(--ink-2); max-width: 70ch; }

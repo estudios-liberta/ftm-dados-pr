@@ -208,7 +208,8 @@ LINHA_ESTOQUE_TOTAL = 10
 # Accounts (Z.1) do Fed, em US$ milhões, trimestral desde 1945.
 FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=%s"
 SERIE_TESOUROS = "BOGZ1FL263061130Q"
-FONTE_TESOUROS = "Federal Reserve (Financial Accounts, Z.1, via FRED) e FMI (COFER)"
+FONTE_TESOUROS = ("Federal Reserve (Financial Accounts, Z.1, via FRED), FMI (COFER) "
+                  "e World Gold Council")
 
 # O bloco à direita da aba Currency Comp, que ele montou: data na coluna Q e,
 # ao lado, os Treasuries em US$ (O), a razão deles sobre as reservas sem os EUA
@@ -527,7 +528,7 @@ def grafico_ouro_tesouros(moedas, tesouros, eua):
             serie("Ouro", AMARELO, ouro, 2, rotulo=True, largura=8),
             # azul, não o verde do dólar dos outros gráficos: ao lado do
             # amarelo do ouro o verde-oliva vira quase o mesmo tom
-            serie("Treasuries em mãos oficiais", AZUL, tes, 2, rotulo=True, largura=8),
+            serie("Treasuries", AZUL, tes, 2, rotulo=True, largura=8),
         ]
     return dict(
         id="reservas-ouro-tesouros",
@@ -543,7 +544,8 @@ def grafico_ouro_tesouros(moedas, tesouros, eua):
         ],
         nota="Os dois numeradores vêm de lugares diferentes e o denominador é o mesmo dos dois "
              "gráficos anteriores: a soma das dez faixas da composição, com o ouro a preço de "
-             "mercado. O ouro é a planilha do FMI; os Treasuries são a série %s do Financial "
+             "mercado. O ouro é do World Gold Council — o FMI (COFER) entra com o valor das "
+             "reservas em cada moeda, não com o ouro. Os Treasuries são a série %s do Financial "
              "Accounts (Z.1) do Fed — títulos do Tesouro americano em poder de instituições "
              "oficiais estrangeiras, que são bancos centrais e fundos soberanos. Por isso a linha "
              "dos Treasuries não é a parte em Treasuries da faixa do dólar: o numerador conta "
