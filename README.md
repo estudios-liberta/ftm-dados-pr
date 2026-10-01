@@ -219,6 +219,7 @@ planilha com oito abas. Para atualizar, trocar o `.xlsx` e rodar
 |---|---|---|
 | Currency Comp | Reservas internacionais por moeda — colunas empilhadas em US$ trilhões, com o preço do ouro na escala da direita | seleção por série (dá para tirar o preço do ouro, e aí o eixo da direita some) |
 | Currency Comp | Participação de cada moeda nas reservas | seleção por moeda |
+| Currency Comp + FRED | Ouro e Treasuries nas reservas internacionais, os dois sobre o mesmo total | — |
 | Variação … acum | Variação acumulada das reservas de ouro, em toneladas | países selecionados / total mundial |
 | variação … anual | Variação anual das reservas de ouro, em toneladas | países selecionados / total mundial |
 | % de ouro nas reservas | Ouro nas reservas internacionais, em % das reservas de cada país | G20, com seleção |
@@ -248,6 +249,16 @@ China" é a soma dos dez asiáticos que ficam fora da Grande China, e Grande
 China é continente + Hong Kong + Taiwan. A faixa cinza é o resíduo da própria
 planilha (`other & stock change`), que é o que faz a pilha encostar na linha do
 total.
+
+**A única série que não vem da planilha** é a dos Treasuries: `BOGZ1FL263061130Q`
+do Financial Accounts (Z.1) do Fed, baixada do FRED sem chave, com os títulos do
+Tesouro americano em poder de instituições oficiais estrangeiras. O pedido vai
+**sem cabeçalho nenhum** — com um User-Agent de navegador o FRED não responde,
+fica pendurado até o timeout em vez de devolver 403. Aquela linha não é a parte
+em Treasuries da faixa do dólar: o numerador conta instituições oficiais que
+podem estar fora do COFER, e a faixa do dólar é bem mais que Treasuries. As duas
+linhas do cartão são comparáveis entre si por dividirem o mesmo total, não
+somáveis.
 
 Três coisas que o script resolve e vale saber:
 

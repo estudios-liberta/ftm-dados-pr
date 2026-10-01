@@ -54,12 +54,15 @@ Dois eixos X diferentes: as abas trimestrais usam a chave "2000-Q1" com
 categorias — um rótulo por ano, que é o que também deixa o "2026*" do estoque
 aparecer como ele é, um ano pela metade.
 """
+import csv
 import datetime
 import glob
+import io
 import json
 import os
 import re
 import sys
+import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from divida import Planilha                                  # noqa: E402
@@ -200,6 +203,13 @@ ESTOQUE_ABERTO = [(4, "Joias", AMARELO), (5, "Bancos centrais", VERDE),
                   (9, "Outros e balcão", CINZA)]
 LINHA_ESTOQUE_TOTAL = 10
 
+# A única série que não vem da planilha: Treasuries em poder de instituições
+# oficiais estrangeiras (bancos centrais e fundos soberanos), do Financial
+# Accounts (Z.1) do Fed, em US$ milhões, trimestral desde 1945.
+FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=%s"
+SERIE_TESOUROS = "BOGZ1FL263061130Q"
+FONTE_TESOUROS = "Federal Reserve (Financial Accounts, Z.1, via FRED) e FMI (COFER)"
+
 FONTE_WGC = "World Gold Council, Metals Focus e Refinitiv GFMS"
 FONTE_ESTOQUE = "World Gold Council, Metals Focus, Refinitiv GFMS e ICE Benchmark Administration"
 
@@ -222,6 +232,25 @@ def trimestre(txt):
         return None
     ano = m.group(2)
     return "%s-Q%s" % (ano if len(ano) == 4 else "20" + ano, m.group(1))
+
+
+def fred(serie):
+    """Série trimestral do FRED, sem chave, no formato do eixo ("2026-Q2").
+
+    O pedido vai **sem cabeçalho nenhum**: com um User-Agent de navegador o
+    FRED não responde — ele não devolve 403, fica pendurado até o timeout."""
+    req = urllib.request.Request(FRED_CSV % serie)
+    txt = urllib.request.urlopen(req, timeout=60).read().decode("utf-8")
+    fora = {}
+    for linha in csv.DictReader(io.StringIO(txt)):
+        valor = linha.get(serie, "")
+        if not valor or valor == ".":
+            continue
+        ano, mes, _ = linha["observation_date"].split("-")
+        fora["%s-Q%d" % (ano, (int(mes) - 1) // 3 + 1)] = float(valor)
+    if not fora:
+        raise RuntimeError("o FRED não devolveu nenhum ponto da série %s" % serie)
+    return fora
 
 
 def painel(pl, aba, linha_nomes, col_nomes, col_data):
@@ -395,12 +424,19 @@ def grafico_moedas(moedas, preco):
              "2016: antes disso estavam dentro de \"outras moedas\".")
 
 
-def grafico_participacao(moedas):
-    """A mesma composição em participação: cada moeda sobre a soma de todas."""
+def total_das_reservas(moedas):
+    """O denominador dos gráficos de participação: a soma das dez faixas da
+    composição, com o ouro a preço de mercado."""
     totais = {}
     for nome, _, _ in MOEDAS:
         for t, v in moedas[nome].items():
             totais[t] = totais.get(t, 0.0) + v
+    return totais
+
+
+def grafico_participacao(moedas):
+    """A mesma composição em participação: cada moeda sobre a soma de todas."""
+    totais = total_das_reservas(moedas)
     series = [serie(rot, cor, {t: v / totais[t] * 100 for t, v in moedas[nome].items()}, 2, rotulo=True)
               for nome, rot, cor in MOEDAS]
     return dict(
@@ -415,6 +451,43 @@ def grafico_participacao(moedas):
              "das dez faixas, ouro incluído. Em 2012 e 2016 o dólar canadense, o australiano e o "
              "yuan saem de \"outras moedas\" e passam a ter faixa própria: o degrau naquelas três "
              "linhas é mudança de classificação, não de composição.")
+
+
+def grafico_ouro_tesouros(moedas, tesouros):
+    """Os dois grandes ativos de reserva lado a lado: o ouro e os Treasuries em
+    mãos oficiais, cada um sobre o mesmo total."""
+    totais = total_das_reservas(moedas)
+    comuns = sorted(t for t in totais if t in tesouros)
+    if not comuns:
+        raise RuntimeError("nenhum trimestre em comum entre a planilha e a série do FRED")
+    print("  ouro × Treasuries: %d trimestres, %s a %s; em %s o ouro é %.1f%% e os Treasuries %.1f%%"
+          % (len(comuns), comuns[0], comuns[-1], comuns[-1],
+             moedas["Ouro"][comuns[-1]] / totais[comuns[-1]] * 100,
+             tesouros[comuns[-1]] / totais[comuns[-1]] * 100))
+    return dict(
+        id="reservas-ouro-tesouros",
+        titulo="Ouro e Treasuries nas reservas internacionais",
+        subtitulo="Em % do total das reservas alocadas mais o ouro",
+        unidade="%",
+        trimestral=True,
+        fonte=FONTE_TESOUROS,
+        series=[
+            serie("Ouro", AMARELO, {t: moedas["Ouro"][t] / totais[t] * 100 for t in comuns}, 2,
+                  rotulo=True, largura=8),
+            # azul, não o verde do dólar dos outros gráficos: ao lado do
+            # amarelo do ouro o verde-oliva vira quase o mesmo tom
+            serie("Treasuries em mãos oficiais", AZUL,
+                  {t: tesouros[t] / totais[t] * 100 for t in comuns}, 2, rotulo=True, largura=8),
+        ],
+        nota="Os dois numeradores vêm de lugares diferentes e o denominador é o mesmo dos dois "
+             "gráficos anteriores: a soma das dez faixas da composição, com o ouro a preço de "
+             "mercado. O ouro é a planilha do FMI; os Treasuries são a série %s do Financial "
+             "Accounts (Z.1) do Fed — títulos do Tesouro americano em poder de instituições "
+             "oficiais estrangeiras, que são bancos centrais e fundos soberanos. Por isso a linha "
+             "verde não é a parte em Treasuries da faixa do dólar: o numerador conta instituições "
+             "oficiais que podem estar fora do COFER, e a faixa do dólar inclui muito mais que "
+             "Treasuries (agências, depósitos, aplicações de curto prazo). As duas linhas são "
+             "comparáveis entre si, por dividirem o mesmo total, não somáveis." % SERIE_TESOUROS)
 
 
 def grafico_variacao(acum, anual, qual):
@@ -636,6 +709,9 @@ def main():
           % (acum[TOTAL][max(acum[TOTAL])], anual_ouro[TOTAL][max(anual_ouro[TOTAL])],
              max(acum[TOTAL])))
 
+    print("Baixando a série %s do FRED…" % SERIE_TESOUROS)
+    tesouros = fred(SERIE_TESOUROS)
+
     # --- o mercado de ouro: balanço, demanda por região, minas e estoque ---
     balanco = painel(pl, ABA_BALANCO, 1, 2, 1)
     exige(balanco, [n for n, _, _ in DEMANDA + OFERTA]
@@ -663,7 +739,8 @@ def main():
 
     secoes = [
         dict(titulo="Composição por moeda",
-             graficos=[grafico_moedas(moedas, preco), grafico_participacao(moedas)]),
+             graficos=[grafico_moedas(moedas, preco), grafico_participacao(moedas),
+                       grafico_ouro_tesouros(moedas, tesouros)]),
         dict(titulo="Reservas de ouro",
              graficos=[grafico_variacao(acum, anual_ouro, "acum"),
                        grafico_variacao(acum, anual_ouro, "anual"), grafico_pct(pct)]),
@@ -677,7 +754,7 @@ def main():
         atualizado=datetime.date.today().isoformat(),
         referencia="%s-%02d" % (ref[:4], int(ref[-1]) * 3),
         fonte="FMI (IFS e COFER), World Gold Council, Metals Focus, Refinitiv GFMS, "
-              "ICE Benchmark Administration e bancos centrais",
+              "ICE Benchmark Administration, Federal Reserve (Z.1) e bancos centrais",
         categoria="Ouro e reservas internacionais",
         secoes=secoes,
     )
