@@ -228,6 +228,8 @@ planilha com oito abas. Para atualizar, trocar o `.xlsx` e rodar
 | Demanda por País | Demanda de ouro por país e região — nove grupos empilhados mais o resíduo, total em linha | joias / barras e moedas |
 | Mine production data | Produção das minas de ouro, por região | seleção por região |
 | Above-ground stocks | Estoque de ouro acima do solo, por destino | por destino / com o investimento aberto |
+| Exports of gold FMI | Exportações de ouro não monetário — os 10 maiores de hoje, em série temporal | seleção por país |
+| Imports of gold FMI | Importações de ouro não monetário — os 10 maiores de hoje, em série temporal | seleção por país |
 
 No cartão da média de 4 trimestres, **as duas linhas de toneladas são a mesma
 linha**: no balanço do mercado a oferta é igual à demanda em todo trimestre, e
@@ -269,6 +271,51 @@ razão dos Treasuries sem os EUA contra a coluna R — as duas batem exatamente.
 uma linha abaixo; reproduz-se exatamente como
 `(ouro − ouroEUA[t]) / (total − ouroEUA[t+1])` nos 106 trimestres. Dá 20,65% no
 último trimestre contra 22,25% da conta descrita. Vale a conta descrita.
+
+### A China, que o FMI não tem
+
+As duas abas de comércio são do balanço de pagamentos do FMI, e **a China não
+está nelas**. O complemento é o que a alfândega chinesa reporta à ONU: HS
+710812 (ouro não monetário em bruto), pelo UN Comtrade — que para a China é
+quase toda a posição 7108 (US$ 8,856 bi contra 8,814 bi em dez/2024, 0,5% de
+diferença).
+
+Isso não cabe numa rodada do `reservas.py`, por dois motivos, e por isso vive
+num cache, `dados/china-ouro.json`, feito por `scripts/china_ouro.py` (que
+**entra no repo**, como os `.xlsx`):
+
+- **o portal da alfândega chinesa está fechado.** `stats.customs.gov.cn` fica
+  atrás do WAF Jiasule: devolve **412** com um desafio em JavaScript e, depois
+  que o navegador resolve o desafio, **400** em todas as tentativas seguintes.
+  Em HTTPS o certificado servido é um autoassinado do próprio Jiasule e a
+  resposta é **504**. O `www.customs.gov.cn` responde 412 igual;
+- **o endpoint aberto do Comtrade aceita um período por chamada** e corta em
+  429 se as chamadas vierem coladas. Com 17 segundos entre elas aguenta, e uma
+  chamada traz os dois fluxos do período — são uns 40 minutos de coleta.
+
+**O mensal e o anual juntos.** A China só reporta o mês a mês de 2016 em diante
+e com atraso (quando isto foi escrito, até dezembro de 2024), mas o **total de
+2025 já está publicado**. Os dois entram no mesmo gráfico sem conversão: a soma
+móvel de quatro trimestres no 4º trimestre de um ano **é** o total daquele ano.
+A amarração é conferida a cada rodada do `china_ouro.py`, em todo ano que tenha
+os doze meses — pelo mensal, os quatro trimestres até 2016-Q4 dão US$ 60,60 bi
+de importação, exatamente o anual de 2016 publicado. O trecho entre 2024-Q4 e
+2025-Q4 é, então, uma reta entre dois pontos verdadeiros, e o cartão usa
+`buracoMax: 4` para o traço não cortar ali.
+
+A limitação que fica, dita na nota do gráfico: **a régua é outra**. O FMI mede
+mudança de propriedade pelo balanço de pagamentos; a alfândega mede mercadoria
+cruzando a fronteira. A linha da China dá ordem de grandeza e posição no
+ranking, não um número que se some aos outros — por isso ela vai pontilhada.
+
+Outras portas foram testadas e não servem: Swiss-Impex e UK Trade Info dão 404
+nas rotas públicas, e o portal de Hong Kong responde mas mediria só o fluxo via
+Hong Kong, não o total da China.
+
+O ranking dos dez maiores sai do **último trimestre em que o painel do FMI está
+cheio**, não do mais recente: nos últimos trimestres só parte dos países já
+reportou, e ali o Peru — 6º maior exportador — cairia do ranking sem ter
+encolhido.
 
 Três coisas que o script resolve e vale saber:
 

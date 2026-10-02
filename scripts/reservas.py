@@ -81,6 +81,13 @@ ABA_BALANCO = "Oferta e Demanda"
 ABA_PAISES = "Demanda por País"
 ABA_MINAS = "Mine production data"
 ABA_ESTOQUE = "Above-ground stocks"
+# As duas abas do comércio de ouro não monetário, já em soma móvel de quatro
+# trimestres e em US$ bilhões: trimestre na coluna A, país da coluna C em
+# diante, cabeçalho na linha 4 (a linha 5 traz a origem na base e é pulada).
+ABA_EXPORTA, ABA_IMPORTA = "Exports of gold FMI", "Imports of gold FMI"
+FMI_CABECALHO, FMI_PRIMEIRA, FMI_COL0 = 4, 6, 3
+QUANTOS_PAISES = 10
+COMECO_COMERCIO = "2000-Q1"
 
 # Cores do tema do Office, as mesmas dos outros gráficos do site, mais seis
 # tons a mais: o gráfico do G20 tem vinte linhas e as catorze de sempre não
@@ -218,6 +225,41 @@ FONTE_TESOUROS = ("Federal Reserve (Financial Accounts, Z.1, via FRED), FMI (COF
 EX_EUA_DATA = 17
 EX_EUA_TESOUROS, EX_EUA_TESOUROS_PCT = 15, 18
 EX_EUA_TOTAL, EX_EUA_OURO = 21, 22
+
+# Comércio de ouro: o nome em português e a cor de cada país. A cor é por país,
+# não por posição no ranking, para a mesma linha ter a mesma cor nos dois
+# gráficos — Suíça e Estados Unidos aparecem nos dois, e lê-se um ao lado do
+# outro. Quem não estiver aqui entra com o nome da planilha e uma cor do fim da
+# fila.
+# A cor olha para o *grupo de baixo* de cada gráfico, que é onde as linhas se
+# encavalam: nas exportações, Japão, Peru, Gana, Itália e Tailândia andam todos
+# entre US$ 15 e 27 bi, e por isso levam famílias diferentes (ciano, roxo,
+# areia, vinho, menta) em vez de três tons de azul-petróleo.
+PAISES = {
+    "Switzerland": ("Suíça", BRANCO),
+    "United States": ("Estados Unidos", AZUL),
+    "China": ("China", VERMELHO),
+    "India": ("Índia", LARANJA),
+    "Canada": ("Canadá", VERDE),
+    "Germany": ("Alemanha", AMARELO),
+    "Australia": ("Austrália", ROSA),
+    "Japan": ("Japão", CIANO),
+    "Peru": ("Peru", ROXO),
+    "Ghana": ("Gana", AREIA),
+    "Thailand": ("Tailândia", MENTA),
+    "Italy": ("Itália", VINHO),
+    "Türkiye, Republic of": ("Türkiye", LILAS),
+    "Saudi Arabia": ("Arábia Saudita", DOURADO),
+    "Korea, Republic of": ("Coreia do Sul", AZUL_CLARO),
+    "South Africa": ("África do Sul", PETROLEO),
+    "Brazil": ("Brasil", OLIVA),
+    "Mexico": ("México", MARROM),
+    "Uzbekistan, Republic of": ("Uzbequistão", CINZA),
+}
+RESERVA = [DOURADO, MARROM, LILAS, AZUL_CLARO, CINZA]
+
+FONTE_COMERCIO = ("FMI (balanço de pagamentos) e, para a China, UN Comtrade "
+                  "(alfândega chinesa, HS 710812)")
 
 FONTE_WGC = "World Gold Council, Metals Focus e Refinitiv GFMS"
 FONTE_ESTOQUE = "World Gold Council, Metals Focus, Refinitiv GFMS e ICE Benchmark Administration"
@@ -451,6 +493,40 @@ def bloco_ex_eua(pl):
     return fora
 
 
+def painel_fmi(pl, aba):
+    """Aba de comércio do FMI → {país: {trimestre: US$ bi}}."""
+    grade = pl.grade(aba)
+    nomes = {grade[FMI_CABECALHO][c]: c for c in sorted(grade[FMI_CABECALHO]) if c >= FMI_COL0}
+    fora = {nome: {} for nome in nomes}
+    for r in sorted(grade):
+        if r < FMI_PRIMEIRA:
+            continue
+        chave = trimestre(grade[r].get(1))
+        if not chave:
+            continue
+        for nome, c in nomes.items():
+            if isinstance(grade[r].get(c), float):
+                fora[nome][chave] = grade[r][c]
+    if not fora:
+        raise RuntimeError("a aba %r veio vazia" % aba)
+    return fora
+
+
+def maiores(painel_, quantos):
+    """Os N maiores de hoje, pelo último trimestre em que o painel está cheio.
+
+    Cheio é o que importa: nos trimestres mais recentes só parte dos países já
+    reportou, e ranquear ali rebaixaria quem ainda não entregou — o Peru, por
+    exemplo, é o 6º maior exportador e some do ranking um trimestre antes dos
+    outros. A série de cada um continua desenhada até onde ela existe."""
+    tris = sorted({t for s in painel_.values() for t in s})
+    cobertura = {t: sum(1 for s in painel_.values() if t in s) for t in tris}
+    cheio = max(cobertura.values())
+    base = [t for t in tris if cobertura[t] == cheio][-1]
+    ordenado = sorted(painel_.items(), key=lambda kv: -kv[1].get(base, 0.0))
+    return base, [nome for nome, _ in ordenado[:quantos]]
+
+
 def total_das_reservas(moedas):
     """O denominador dos gráficos de participação: a soma das dez faixas da
     composição, com o ouro a preço de mercado."""
@@ -556,6 +632,79 @@ def grafico_ouro_tesouros(moedas, tesouros, eua):
              "Estados Unidos: eles têm a maior reserva de ouro do mundo e quase nada em moeda "
              "estrangeira, e não guardam Treasuries como reserva, então sem eles o ouro pesa menos "
              "e os Treasuries pesam mais." % SERIE_TESOUROS)
+
+
+def china_trimestral(cache):
+    """O cache do Comtrade → soma móvel de 4 trimestres, em US$ bi.
+
+    O mensal vira trimestre (só trimestre com os três meses conta) e depois soma
+    móvel de quatro trimestres seguidos — a mesma régua das abas do FMI, que já
+    vêm assim.
+
+    Onde o mensal não alcança, entra o **anual**, sem conversão nenhuma: a soma
+    móvel de quatro trimestres no 4º trimestre de um ano é, por definição, o
+    total daquele ano. É o que estica a China de 2024-Q4 para 2025-Q4, já que o
+    Comtrade publica o total de 2025 mas ainda não os meses. O mensal tem
+    preferência onde os dois existem, e o china_ouro.py confere que eles batem.
+    """
+    if not cache:
+        return {}
+    por_tri = {}
+    for mes, v in cache.get("meses", {}).items():
+        ano, m = int(mes[:4]), int(mes[4:])
+        por_tri.setdefault("%04d-Q%d" % (ano, (m - 1) // 3 + 1), []).append(v)
+    fora = {}
+    for fluxo, nome in (("X", "exporta"), ("M", "importa")):
+        cheios = {t: sum(x.get(fluxo, 0.0) for x in ms) / 1e9
+                  for t, ms in por_tri.items()
+                  if len(ms) == 3 and all(fluxo in x for x in ms)}
+        # media_movel divide por 4; aqui o que vale é a soma dos 4 trimestres
+        serie_ = {t: v * 4 for t, v in media_movel(cheios, 4).items()}
+        for ano, v in cache.get("anos", {}).items():
+            if fluxo in v:
+                serie_.setdefault("%s-Q4" % ano, v[fluxo] / 1e9)
+        fora[nome] = serie_
+    return fora
+
+
+def grafico_comercio(painel_, china, qual):
+    """Os dez maiores exportadores (ou importadores) de ouro não monetário de
+    hoje, em série temporal, com a China vinda da alfândega dela."""
+    base, top = maiores(painel_, QUANTOS_PAISES)
+    titulo = ("Exportações de ouro não monetário" if qual == "exporta"
+              else "Importações de ouro não monetário")
+    series, sobra = [], list(RESERVA)
+    for nome in top:
+        pt, cor = PAISES.get(nome, (nome, sobra.pop(0) if sobra else CINZA))
+        dados = {t: v for t, v in painel_[nome].items() if t >= COMECO_COMERCIO}
+        series.append(serie(pt, cor, dados, 2, rotulo=True))
+    if china:
+        series.append(serie("China", VERMELHO, china, 2, rotulo=True, traco="pontilhado", largura=6))
+    return dict(
+        id="ouro-comercio-" + qual,
+        titulo=titulo,
+        subtitulo="Soma dos quatro trimestres até cada ponto, em US$ bilhões",
+        unidade="usd-bi",
+        trimestral=True,
+        selecao=True,
+        # a China tem o trimestre até 2024 e depois só o total do ano: o traço
+        # não pode cortar num buraco de até quatro trimestres
+        buracoMax=4,
+        fonte=FONTE_COMERCIO,
+        series=series,
+        nota="Os dez maiores de hoje, cada um com a sua série inteira — o ranking sai do último "
+             "trimestre em que o painel do FMI está cheio (%s), e não do trimestre mais recente, "
+             "onde só parte dos países já reportou e quem está atrasado cairia do ranking sem ter "
+             "encolhido. Pelo mesmo motivo algumas linhas terminam antes das outras. **A China não "
+             "entra na estatística do FMI**: a linha pontilhada vem da alfândega dela, pelo que ela "
+             "reporta à ONU (HS 710812, ouro não monetário em bruto, que para a China é quase toda "
+             "a posição 7108). São duas réguas diferentes — o FMI mede mudança de propriedade pelo "
+             "balanço de pagamentos, a alfândega mede mercadoria cruzando a fronteira —, então a "
+             "linha da China indica a ordem de grandeza, não um número que se some aos outros. O "
+             "trimestre dela vai até o fim de 2024, que é até onde o Comtrade tem o mês a mês; o "
+             "ponto de 2025 vem do total do ano, que já está publicado e cai exatamente onde a "
+             "soma móvel de quatro trimestres cai no 4º trimestre. O trecho entre um e outro é "
+             "uma reta entre dois pontos verdadeiros, não trimestre medido." % base)
 
 
 def grafico_variacao(acum, anual, qual):
@@ -800,6 +949,20 @@ def main():
     anos_mina, minas = anual(pl, ABA_MINAS, 4, 2, 16)
     confere("minas — regiões", [minas[r] for r, _, _ in REGIOES_MINA], minas[LINHA_MINA_TOTAL], 0.2)
 
+    exporta, importa = painel_fmi(pl, ABA_EXPORTA), painel_fmi(pl, ABA_IMPORTA)
+    china = {}
+    caminho_china = os.path.join(RAIZ, "dados", "china-ouro.json")
+    if os.path.exists(caminho_china):
+        with open(caminho_china, encoding="utf-8") as f:
+            china = china_trimestral(json.load(f))
+        for nome, d in china.items():
+            if d:
+                print("  China (%s): %d trimestres, %s a %s; hoje US$ %.1f bi"
+                      % (nome, len(d), min(d), max(d), d[max(d)]))
+    else:
+        print("  dados/china-ouro.json não existe — rode scripts/china_ouro.py; "
+              "os gráficos de comércio saem sem a China")
+
     anos_estoque, estoque = anual(pl, ABA_ESTOQUE, 3, 2, 17)
     confere("estoque — destinos", [estoque[r] for r, _, _ in ESTOQUE], estoque[LINHA_ESTOQUE_TOTAL])
     confere("estoque — investimento aberto", [estoque[r] for r, _, _ in ESTOQUE_ABERTO],
@@ -818,12 +981,16 @@ def main():
                        grafico_demanda_paises(blocos)]),
         dict(titulo="Produção e estoque",
              graficos=[grafico_minas(anos_mina, minas), grafico_estoque(anos_estoque, estoque)]),
+        dict(titulo="Comércio de ouro",
+             graficos=[grafico_comercio(exporta, china.get("exporta"), "exporta"),
+                       grafico_comercio(importa, china.get("importa"), "importa")]),
     ]
     doc = dict(
         atualizado=datetime.date.today().isoformat(),
         referencia="%s-%02d" % (ref[:4], int(ref[-1]) * 3),
-        fonte="FMI (IFS e COFER), World Gold Council, Metals Focus, Refinitiv GFMS, "
-              "ICE Benchmark Administration, Federal Reserve (Z.1) e bancos centrais",
+        fonte="FMI (IFS, COFER e balanço de pagamentos), World Gold Council, Metals Focus, "
+              "Refinitiv GFMS, ICE Benchmark Administration, Federal Reserve (Z.1), UN Comtrade "
+              "e bancos centrais",
         categoria="Ouro e reservas internacionais",
         secoes=secoes,
     )
