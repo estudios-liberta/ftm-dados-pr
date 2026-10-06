@@ -37,8 +37,15 @@ Gráficos do chart book desenhados no navegador, sem build: `index.html` +
   nítido): apresentação 16:9 (3840×2160) e Instagram feed 4:5 (2160×2700),
   feed 3:4 (2160×2880), quadrado 1:1 (2160×2160) e Stories 9:16 (2160×3840,
   com o gráfico dentro da área segura, longe das barras do app).
-- **Período** — Tudo / 20 / 10 / 5 anos. Passe o mouse (ou toque) para ver os
-  valores do mês.
+- **Período** — **arraste no gráfico com o botão esquerdo** e a faixa que você
+  cobriu vira o recorte, como no FRED; o rótulo ao lado do título passa a dizer
+  qual é. Duplo clique no gráfico, ou o botão **Ver tudo** (que só aparece
+  quando há o que desfazer), volta à série inteira. Esc cancela um arrasto em
+  curso, e arrasto curto demais conta como clique, não como seleção. Onde não
+  há mouse fino — celular e tablet, em que arrastar é rolar a página —
+  continuam os botões de Tudo / 20 / 10 / 5 anos.
+  O recorte vale também no visor em tela cheia e **entra na imagem baixada**.
+  Passe o mouse (ou toque) para ver os valores do mês.
 - **Recortes** — alguns cartões mostram um recorte por vez, escolhido em
   botões ao lado do período: dívida interna ou externa, "% do total" ou
   "R$ bilhões", um título, um detentor, um indexador. O recorte escolhido

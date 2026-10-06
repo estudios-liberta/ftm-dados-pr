@@ -320,3 +320,9 @@ body.visor-aberto { overflow: hidden; }
   .visor { padding: 44px 10px; }
   .visor-palco { width: min(calc(100vw - 20px), calc((100vh - 96px) * var(--ar, 1.7778))); }
 }
+
+/* escolha do período arrastando: a dica ocupa o lugar dos antigos botões de
+   20/10/5 anos e vira o recorte escolhido quando há um */
+.periodos-dica { font-size: 13px; color: var(--ink-2); opacity: .75; align-self: center; }
+.periodos-dica.escolhido { opacity: 1; color: var(--ink); font-weight: 600; }
+.periodos button[hidden] { display: none; }
