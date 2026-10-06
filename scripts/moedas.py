@@ -61,6 +61,12 @@ SAIDA = os.path.join(RAIZ, "dados", "moedas.json")
 AZUL, VERMELHO, VERDE, LARANJA = "#4F81BD", "#C0504D", "#9BBB59", "#F79646"
 BRANCO = "#FFFFFF"
 
+# A cédula que preenche a área sob a linha de cada gráfico de poder de compra.
+# O desenho estica a imagem no quadro do gráfico e recorta no traço: quanto da
+# nota aparece é o que ainda sobrou do dinheiro.
+NOTA_REAL = "assets/nota-real.jpg"
+NOTA_DOLAR = "assets/nota-dolar.jpg"
+
 ABA_REAL = "1-BRL PP Chart"
 ABA_DOLAR = "USD PP Chart"
 ABA_CAMBIO = "2-Chart Câmbio Justo"
@@ -163,7 +169,8 @@ def grafico_poder_real(pp):
         subtitulo="O que R$ 100 da estreia do real compram em cada mês, descontado o IPCA",
         unidade="brl",
         fonte=FONTE_REAL,
-        series=[serie("Real", BRANCO, pp, 2, largura=5, rotulo=True)],
+        series=[serie("Real", BRANCO, pp, 2, largura=5, rotulo=True,
+                      area=True, imagem=NOTA_REAL)],
         nota="A linha é R$ 100 de junho de 1994 — o último mês fechado antes de o real entrar em "
              "circulação, em 1º de julho — corrigidos pelo IPCA mês a mês: em cada ponto está o "
              "que aquele dinheiro ainda compra, aos preços daquele mês. Não é uma previsão nem "
@@ -184,7 +191,8 @@ def grafico_poder_dolar(pp):
         # sozinho (dois anos) cabe mas vira um paredão de texto inclinado
         passoX=120,
         fonte=FONTE_DOLAR,
-        series=[serie("Dólar", BRANCO, pp, 2, largura=5, rotulo=True)],
+        series=[serie("Dólar", BRANCO, pp, 2, largura=5, rotulo=True,
+                      area=True, imagem=NOTA_DOLAR)],
         nota="Mesma conta do gráfico do real, com o CPI no lugar do IPCA e um século a mais de "
              "história: é o índice do BLS \"Purchasing Power of the Consumer Dollar\", "
              "reindexado para 100 em dezembro de 1912 (o original tem base 1982-84). A linha "

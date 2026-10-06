@@ -72,6 +72,13 @@
                 "dados/tesouro-direto.json", "dados/reservas.json", "dados/moedas.json"];
   var docs = [];
   var logoSvg = null;   // {viewBox, nos}
+  // Imagens que entram dentro do desenho (a nota de R$100 sob a linha do poder
+  // de compra, a de US$100 sob a do dólar). Ficam aqui já em data URI, e não
+  // como href para o arquivo: na hora de baixar, o SVG é serializado e
+  // rasterizado num <img>, e ali referência externa não carrega — a nota
+  // sumiria do PNG. Em data URI o desenho é autossuficiente nos quatro
+  // formatos, inclusive no .svg, que sai como um arquivo só.
+  var IMAGENS = {};     // {caminho: "data:image/jpeg;base64,…"}
 
   // ---------- utilidades ----------
   function el(nome, attrs, filhos) {
@@ -559,14 +566,33 @@
       // sendo buraco — emendar por cima dele inventaria o mês que falta.
       // O traço vai por cima, que é o que dá a borda nítida.
       if (s.area) {
-        var yz = YS(0), cf = corNoTema(s.cor, pal);
+        var yz = YS(0), cf = corNoTema(s.cor, pal), formas = [];
         trechos.forEach(function (t) {
           if (t.length < 2) return;
           var da = "M" + t[0][0].toFixed(1) + " " + yz.toFixed(1);
           t.forEach(function (q) { da += "L" + q[0].toFixed(1) + " " + q[1].toFixed(1); });
           da += "L" + t[t.length - 1][0].toFixed(1) + " " + yz.toFixed(1) + "Z";
-          area.appendChild(el("path", { d: da, fill: cf, opacity: s.opacidadeArea || 0.5, stroke: "none" }));
+          formas.push(da);
         });
+        var fonteImg = s.imagem && IMAGENS[s.imagem];
+        if (fonteImg && formas.length) {
+          // a nota preenche o quadro do gráfico e a área sob a linha é o
+          // recorte: é a linha que decide quanto da nota aparece. Esticada
+          // (preserveAspectRatio="none") de propósito — o que importa é ela
+          // cobrir o quadro, não ficar na proporção da cédula de verdade.
+          var idImg = idClip + "-nota-" + k;
+          svg.insertBefore(el("defs", {}, [el("clipPath", { id: idImg },
+            formas.map(function (d2) { return el("path", { d: d2 }); }))]), svg.firstChild);
+          area.appendChild(el("image", {
+            href: fonteImg, x: L.x0, y: L.y0, width: pw, height: ph,
+            preserveAspectRatio: "none", "clip-path": "url(#" + idImg + ")",
+            opacity: s.opacidadeImagem || 1
+          }));
+        } else {
+          formas.forEach(function (d2) {
+            area.appendChild(el("path", { d: d2, fill: cf, opacity: s.opacidadeArea || 0.5, stroke: "none" }));
+          });
+        }
       }
       var w = s.largura || L.linha, op = s.opacidade || null;
       area.appendChild(el("path", {
@@ -1414,6 +1440,35 @@
     }).catch(function () {});
   }
 
+  function carregarImagens(docs) {
+    // Uma volta por tudo que está desenhado, recolhendo os caminhos de imagem
+    // das séries. Imagem que não baixar não quebra nada: a série cai no
+    // preenchimento liso, que é o desenho de sempre.
+    var caminhos = {};
+    docs.forEach(function (d) {
+      (d.secoes || []).forEach(function (sec) {
+        (sec.graficos || []).forEach(function (g) {
+          (g.variantes || [{ series: g.series }]).forEach(function (v) {
+            (v.series || []).forEach(function (s) { if (s.imagem) caminhos[s.imagem] = 1; });
+          });
+        });
+      });
+    });
+    return Promise.all(Object.keys(caminhos).map(function (url) {
+      return fetch(url).then(function (r) {
+        if (!r.ok) throw new Error(r.status);
+        return r.blob();
+      }).then(function (b) {
+        return new Promise(function (ok, erro) {
+          var fr = new FileReader();
+          fr.onload = function () { IMAGENS[url] = fr.result; ok(); };
+          fr.onerror = erro;
+          fr.readAsDataURL(b);
+        });
+      }).catch(function () {});
+    }));
+  }
+
   function rotuloNav(sec, g) {
     // o menu inteiro já está dentro de "IPCA": repetir o prefixo em cada linha
     // só faz o texto quebrar em três linhas na barra lateral
@@ -1539,6 +1594,11 @@
       montarRodape(docs);
       cartoes.forEach(function (c) { desenhar(c, true); });
       if (location.hash.length > 1) irPara(location.hash.slice(1));
+      // as imagens vêm depois do primeiro desenho: o gráfico aparece na hora,
+      // com o preenchimento liso, e ganha a nota quando ela chega
+      carregarImagens(docs).then(function () {
+        if (Object.keys(IMAGENS).length) cartoes.forEach(function (c) { desenhar(c, true); });
+      });
     }).catch(function (e) {
       host.innerHTML = "";
       host.appendChild(html("p", { "class": "estado erro", texto: "Não foi possível carregar os dados. " + e.message }));

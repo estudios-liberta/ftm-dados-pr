@@ -451,12 +451,15 @@ scripts/    atualizar.py (IPCA), fiscal.py (resultado primário) e
 
 O `app.js` é genérico: lê os arquivos de `dados/` e desenha o que vier. Séries
 em linha ou em barra empilhada, unidade `%`, `bi` (R$ bilhões), `anos`,
-`usd-tri`, `usd-oz` ou `t` (toneladas), eixo X mensal, diário (`diario`),
+`usd-tri`, `usd-oz`, `t` (toneladas), `brl`, `usd` ou `brl-usd` (câmbio, duas
+casas fixas também no eixo), eixo X mensal, diário (`diario`),
 trimestral (`trimestral`, chave `"2000-Q1"`) ou por categoria (`categorias`,
 que é como entram as séries anuais — um rótulo por ano), e
 cartões com `variantes`. Por série ainda dá para pedir `largura`, `opacidade`,
 `traco`, `rotulo` (o valor na ponta da linha) e `legenda: false`. Com
 `selecao: true` no gráfico, cada série ganha um botão para ligar e desligar.
+`passoX: n` força o eixo X a um rótulo a cada n meses (o dólar desde 1912 usa
+`120`: o passo que o eixo escolhe sozinho cabe, mas vira um paredão de texto).
 
 **Eixo da direita**: a série marcada com `dir: true` sai da escala da esquerda e
 ganha a sua, na unidade de `unidade2` (é o preço do ouro ao lado do estoque de
@@ -480,6 +483,32 @@ dos botões — isso a tela já mostra.
 fora da legenda e da caixa do mouse — é o que faz o feixe cinza de "todos os
 anos" caber na tela. No **CSV ela entra assim mesmo**: na tela é contexto, no
 arquivo é dado.
+
+### Área preenchida, e a cédula sob a linha
+
+`area: true` fecha a série até a linha do zero e pinta. É **um polígono por
+trecho contínuo**, não um só: onde a série tem buraco, a área se divide — e
+emendar por cima seria inventar o mês que falta.
+
+Com `imagem: "assets/…"` junto, o preenchimento deixa de ser cor e passa a ser
+a imagem, esticada no quadro do gráfico e **recortada pela área**: é a linha que
+decide quanto dela aparece. É assim que a nota de R$ 100 vai sob o poder de
+compra do real e a de US$ 100 sob a do dólar. A imagem é esticada de propósito
+(`preserveAspectRatio="none"`) — ela precisa cobrir o quadro, não ficar na
+proporção da cédula de verdade.
+
+Duas coisas que não são óbvias:
+
+- **A imagem entra em data URI, não como caminho.** Na hora de baixar, o SVG é
+  serializado e rasterizado dentro de um `<img>`, e ali referência externa não
+  carrega: a nota sumiria do PNG. `carregarImagens` baixa cada arquivo uma vez,
+  converte em `data:image/jpeg;base64,…` e guarda em `IMAGENS`; o desenho usa a
+  cópia embutida. Assim o PNG, o JPG, o PDF e o `.svg` saem todos com a nota —
+  o `.svg` fica autossuficiente, num arquivo só (96 KB no do real).
+- **Ela chega depois do primeiro desenho.** O gráfico aparece na hora, com o
+  preenchimento liso da cor da série, e é redesenhado quando a imagem carrega.
+  Imagem que não baixar não quebra nada: a série fica na cor, que é o desenho
+  de sempre.
 
 ## As moedas e o câmbio (planilha de moedas)
 
@@ -508,6 +537,10 @@ Três coisas da planilha que o script precisa saber:
   que não tenha um serial de data plausível na coluna da data.
 
 ### O que cada série é
+
+Os dois cartões de **poder de compra** levam a cédula correspondente sob a
+linha (`assets/nota-real.jpg` e `assets/nota-dolar.jpg`), como no modelo feito
+no PowerPoint — ver *Área preenchida, e a cédula sob a linha*, acima.
 
 O **poder de compra** das duas moedas é a mesma conta: 100 no mês-base,
 dividido pela inflação acumulada desde então. Do real, base junho de 1994 (o
