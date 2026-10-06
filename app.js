@@ -771,7 +771,8 @@
     }
 
     if (!g0.categorias && mouseFino()) {
-      alvo.style.cursor = "ew-resize";
+      // sem trocar o cursor: a seta de duas pontas tomava o gráfico inteiro e
+      // atrapalhava a leitura dos valores, que é o uso comum do mouse aqui
       alvo.addEventListener("pointerdown", function (ev) {
         if (ev.button !== 0 || ev.pointerType === "touch") return;
         arrasto = { a: xNoSvg(ev), b: xNoSvg(ev) };
