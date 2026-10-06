@@ -1633,9 +1633,13 @@
     return t + " (" + g.subtitulo.split(";")[0].trim().split(" ").slice(-2).join(" ") + ")";
   }
 
+  function contarGraficos(dados) {
+    return dados.secoes.reduce(function (n, sec) { return n + sec.graficos.length; }, 0);
+  }
+
   function montarNav(dados, host) {
-    var total = dados.secoes.reduce(function (n, sec) { return n + sec.graficos.length; }, 0);
-    var grupo = html("details", { "class": "nav-grupo" });
+    var total = contarGraficos(dados);
+    var grupo = html("details", { "class": "nav-grupo", "data-cat": idCategoria(dados) });
     var rotulo = html("summary", { "class": "nav-rotulo" });
     rotulo.appendChild(seta());
     rotulo.appendChild(html("span", { texto: dados.categoria }));
@@ -1668,6 +1672,7 @@
   function irPara(id) {
     var alvo = document.getElementById(id);
     if (!alvo) return;
+    abrirTemas(false);
     for (var n = alvo; n; n = n.parentElement) if (n.tagName === "DETAILS") n.open = true;
     cartoes.forEach(function (c) { desenhar(c, false); });
     alvo.scrollIntoView({ block: "start" });
@@ -1678,6 +1683,98 @@
   function slug(t) {
     return t.toLowerCase().replace(/%/g, "pct").normalize("NFD").replace(/[̀-ͯ]/g, "")
       .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  }
+
+  // Resumo da abertura: quantos gráficos e temas a página tem e a data da
+  // atualização mais recente, tudo contado dos próprios arquivos de dados.
+  function montarResumo(lista) {
+    var caixa = document.getElementById("resumo");
+    if (!caixa) return;
+    var graficos = lista.reduce(function (n, d) { return n + contarGraficos(d); }, 0);
+    var ultima = lista.map(function (d) { return d.atualizado; }).sort().pop().split("-");
+    caixa.innerHTML = "";
+    [[String(graficos), "gráficos"], [String(lista.length), "temas"],
+     [ultima[2] + "/" + ultima[1], "última atualização"]].forEach(function (item) {
+      caixa.appendChild(html("li", {}, [html("strong", { texto: item[0] }), html("span", { texto: item[1] })]));
+    });
+    caixa.hidden = false;
+  }
+
+  // As categorias entram ao aparecer na tela, uma depois da outra. Sem
+  // IntersectionObserver (navegador antigo), tudo aparece de uma vez.
+  function observarCategorias() {
+    var cats = Array.prototype.slice.call(document.querySelectorAll(".categoria"));
+    if (!("IntersectionObserver" in window)) {
+      cats.forEach(function (c) { c.classList.add("is-in"); });
+      return;
+    }
+    var fila = 0;
+    var entrada = new IntersectionObserver(function (vistas) {
+      vistas.forEach(function (v) {
+        if (!v.isIntersecting) return;
+        v.target.style.transitionDelay = (fila++ * 0.06) + "s";
+        v.target.classList.add("is-in");
+        entrada.unobserve(v.target);
+      });
+      fila = 0;
+    }, { rootMargin: "0px 0px -6% 0px" });
+    cats.forEach(function (c) { entrada.observe(c); });
+  }
+
+  // A categoria acesa no menu é a última cujo título já passou de um terço da
+  // tela. No topo da página, com tudo fechado, nenhuma acende: o destaque só
+  // aparece quando o leitor de fato entrou num tema.
+  function acenderCategoriaAtual() {
+    var linha = window.innerHeight / 3, atual = null;
+    document.querySelectorAll(".categoria").forEach(function (c) {
+      if (c.open && c.getBoundingClientRect().top <= linha) atual = c.id;
+    });
+    document.querySelectorAll(".nav-grupo").forEach(function (g) {
+      var acesa = g.getAttribute("data-cat") === atual;
+      if ((g.getAttribute("data-atual") === "true") !== acesa) g.setAttribute("data-atual", String(acesa));
+    });
+  }
+
+  // Celular: a barra lateral vira cabeçalho fixo, e a lista de temas, uma
+  // gaveta aberta pelo botão de menu. Esc e a escolha de um gráfico fecham.
+  function lateral() { return document.querySelector(".lateral"); }
+  function abrirTemas(abrir) {
+    var btn = document.getElementById("menu-temas");
+    if (!btn) return;
+    lateral().setAttribute("data-aberto", String(abrir));
+    btn.setAttribute("aria-expanded", String(abrir));
+    btn.setAttribute("aria-label", abrir ? "Fechar a lista de temas" : "Abrir a lista de temas");
+  }
+  function ligarMenuTemas() {
+    var btn = document.getElementById("menu-temas");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      abrirTemas(btn.getAttribute("aria-expanded") !== "true");
+    });
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape" && btn.getAttribute("aria-expanded") === "true") {
+        abrirTemas(false);
+        btn.focus();
+      }
+    });
+    // Na rolagem: o cabeçalho do celular ganha fundo depois que a página sai
+    // do topo, e o menu acende a categoria em que o leitor está. Um quadro
+    // de animação por vez, para não medir a página a cada pixel rolado.
+    var rolado = null, pedido = false;
+    function aoRolar() {
+      pedido = false;
+      var agora = window.scrollY > 8;
+      if (agora !== rolado) {
+        rolado = agora;
+        lateral().setAttribute("data-rolado", String(agora));
+      }
+      acenderCategoriaAtual();
+    }
+    window.addEventListener("scroll", function () {
+      if (!pedido) { pedido = true; requestAnimationFrame(aoRolar); }
+    }, { passive: true });
+    document.addEventListener("toggle", function () { acenderCategoriaAtual(); }, true);
+    aoRolar();
   }
 
   // Uma linha por categoria — até onde o dado vai, quando foi atualizado e de
@@ -1704,10 +1801,12 @@
   // Monta uma categoria inteira na página: categoria > seções > gráficos,
   // tudo fechado — a página inicial é o índice.
   function montarCategoria(dados, host) {
-    var cat = html("details", { "class": "categoria", id: idCategoria(dados) });
+    var cat = html("details", { "class": "categoria revela", id: idCategoria(dados) });
     var rotulo = html("summary", { "class": "categoria-rotulo" });
     rotulo.appendChild(seta());
-    rotulo.appendChild(html("span", { texto: dados.categoria }));
+    // h2 dentro do summary: o leitor de tela navega pelos temas como títulos
+    rotulo.appendChild(html("h2", { "class": "categoria-titulo", texto: dados.categoria }));
+    rotulo.appendChild(html("span", { "class": "categoria-conta", texto: contarGraficos(dados) + " gráficos" }));
     cat.appendChild(rotulo);
 
     dados.secoes.forEach(function (sec, k) {
@@ -1811,6 +1910,7 @@
     // faria o botão do tema piscar e o resize redesenhar em dobro.
     document.getElementById("tema").addEventListener("click", alternarTema);
     telaCheiaDaPagina();
+    ligarMenuTemas();
     var espera;
     window.addEventListener("resize", function () {
       clearTimeout(espera);
@@ -1846,6 +1946,8 @@
         montarNav(dados, nav);
       });
       montarRodape(docs);
+      montarResumo(docs);
+      observarCategorias();
       cartoes.forEach(function (c) { desenhar(c, true); });
       if (location.hash.length > 1) irPara(location.hash.slice(1));
       // as imagens vêm depois do primeiro desenho: o gráfico aparece na hora,
