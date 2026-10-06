@@ -326,3 +326,76 @@ body.visor-aberto { overflow: hidden; }
 .periodos-dica { font-size: 13px; color: var(--ink-2); opacity: .75; align-self: center; }
 .periodos-dica.escolhido { opacity: 1; color: var(--ink); font-weight: 600; }
 .periodos button[hidden] { display: none; }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Gate de assinante — mesmo desenho do Follow the News
+   (lps-ftm/src/components/news/follow-the-news.css), reescrito em CSS puro.
+   Sempre escuro, independente do tema do site: é a porta, não o conteúdo. */
+.gate {
+  position: fixed; inset: 0; z-index: 100; background: #000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px calc(24px + env(safe-area-inset-right)) 24px calc(24px + env(safe-area-inset-left));
+}
+.gate[hidden] { display: none; }
+.gate-brilho {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(1, 117, 255, .12) 0%, transparent 60%);
+}
+.gate-caixa { position: relative; z-index: 1; width: 100%; max-width: 400px; text-align: center; }
+.gate-logo { display: block; height: 28px; margin: 0 auto 24px; color: #f5f5f5; }
+.gate-logo svg { height: 100%; width: auto; }
+.gate-cadeado {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px; margin-bottom: 20px; border-radius: 50%;
+  border: 1px solid rgba(1, 117, 255, .3); background: rgba(1, 117, 255, .1); color: #0175ff;
+}
+.gate-titulo {
+  margin: 0 0 8px; font-size: 30px; font-weight: 800;
+  letter-spacing: -.025em; line-height: 1.05; color: #f5f5f5;
+}
+.gate-titulo span { color: #0175ff; }
+.gate-sobrancelha {
+  margin: 0 0 16px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .22em; color: #6b6b6b;
+}
+.gate-texto {
+  margin: 0 auto 28px; max-width: 330px;
+  font-size: 13.5px; line-height: 1.6; color: #a6a6a6;
+}
+.gate-form { max-width: 330px; margin: 0 auto; }
+.gate-email {
+  width: 100%; box-sizing: border-box; padding: 12px 16px; text-align: center;
+  font: inherit; font-size: 14px; color: #f5f5f5;
+  background: #0e0e0e; border: 1px solid #272727; border-radius: 11px;
+  transition: border-color .2s;
+}
+.gate-email::placeholder { color: #6b6b6b; }
+.gate-email:focus { outline: none; border-color: #0175ff; }
+.gate-erro {
+  margin-top: 16px; padding: 16px; text-align: left; border-radius: 8px;
+  border: 1px solid rgba(229, 72, 77, .3); background: rgba(229, 72, 77, .05);
+  font-size: 13px; line-height: 1.5; color: rgba(229, 72, 77, .9);
+}
+.gate-erro[hidden] { display: none; }
+.gate-erro .assine { display: block; margin-top: 8px; color: #a6a6a6; }
+.gate-erro .assine a { color: #0175ff; text-decoration: underline; text-underline-offset: 2px; }
+.gate-botao {
+  width: 100%; margin-top: 20px; padding: 14px 24px; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: #fff; background: #0175ff; border: 0; border-radius: 11px;
+  transition: background .2s, opacity .2s;
+}
+.gate-botao:hover:not(:disabled) { background: #0060dd; }
+.gate-botao:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Com o gate aberto, o site não existe: nada de ler o conteúdo por baixo. */
+.app[hidden] { display: none; }
+
+/* Antes da pintura: o index.html marca <html data-portao> quando a página vai
+   pedir e-mail, para o esqueleto do chart book não aparecer e sumir. Entre a
+   pintura e o app.js a tela fica preta, que é a cor do portão — e não um
+   lampejo do conteúdo. O app.js tira a marca ao liberar. */
+:root[data-portao] .app { display: none; }
+:root[data-portao] body { background: #000; }

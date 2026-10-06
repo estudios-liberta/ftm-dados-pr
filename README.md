@@ -588,3 +588,62 @@ sem diferencial não há câmbio pela PPC, e sem ele não há sobre/(sub)valoriz
 O buraco fica **à vista** nos gráficos — a linha corta e a área se divide em
 dois polígonos. Emendar por cima dele seria inventar o mês. Só o poder de
 compra do real escapa, porque depende do IPCA e não do CPI.
+
+## Onde o site mora, e o portão de assinante
+
+O ftm-dados roda em **dois lugares ao mesmo tempo**, de propósito, enquanto
+durar a transição:
+
+| Endereço | Quem entra | Como é publicado |
+|---|---|---|
+| `ftm.app.br/interno/dados` | **assinante do Follow the Money** | `publicar.yml` manda por rsync para o VPS, e o Caddy serve |
+| `guivaraschinalves.github.io/ftm-dados` | qualquer um | GitHub Pages, como sempre |
+
+### Como o portão funciona
+
+É o **mesmo** do Follow the News, não uma cópia: mesma função, mesma base de
+assinantes, mesmo token. O leitor informa o e-mail da assinatura; a função
+`news-access?action=validate` confere contra `base_usuarios` (que os webhooks da
+Guru e da HeroSpark alimentam) ou a `news_access_allowlist` (cortesia da equipe)
+e devolve um token HMAC de 30 dias. O token fica em
+`localStorage['ftn_access']` — a mesma chave do Follow the News, de propósito:
+mesma origem, mesma assinatura, então **quem liberou um já entra no outro**.
+
+O que de fato guarda os números é o **servidor**, não esta tela. Em
+`ftm.app.br` o Caddy intercepta `/interno/dados/dados/*.json`, pergunta ao
+`news-access?action=verify` se o token vale e só então entrega o arquivo; sem
+token é 401, e o portão reaparece. Esconder o gráfico no JavaScript não
+guardaria nada — bastaria abrir a aba de rede.
+
+O portão só liga em `ftm.app.br` (ou com `?gate=1` no endereço, para testar).
+No GitHub Pages o site segue aberto: pedir e-mail ali seria teatro, porque os
+JSON continuam a uma URL de distância.
+
+### Para fechar de vez
+
+Enquanto as duas publicações existirem **não há exclusividade nenhuma**: quem
+tiver o link antigo abre tudo, e quem souber a URL do GitHub baixa os JSON do
+`raw.githubusercontent.com`. A máquina já está montada; ligar a exclusividade
+são dois passos, nesta ordem, e **nenhum deles mexe no código**:
+
+1. **Desligar o GitHub Pages** do repositório (Settings → Pages → Source:
+   None). Mata o site aberto. Só isso já resolve a maior parte.
+2. **Tornar o repositório privado.** Mata o acesso aos JSON por fora. O
+   `atualizar.yml` continua rodando (repositório privado consome minutos da
+   cota, e ~60 rodadas de 2 min por mês cabem folgado no plano gratuito).
+
+### Publicação no VPS
+
+`publicar.yml` manda o site por rsync para `/srv/apps/ftm-dados/current`. Vai
+só o que o navegador precisa: `scripts/` e os `.xlsx` ficam de fora — são a
+cozinha, não o prato, e a planilha sozinha tem 2 MB.
+
+O gatilho tem uma sutileza: além do `push`, ele ouve o **`workflow_run`** do
+"Atualiza os dados". É que aquele workflow commita com o `GITHUB_TOKEN` padrão,
+e o GitHub não deixa push feito com esse token disparar outro workflow — para
+não criar laço infinito. Sem o `workflow_run`, o site no VPS congelaria no
+último commit humano enquanto o repositório continuasse atualizando, que é o
+tipo de falha que parece problema de cache e não é.
+
+Precisa dos segredos `DEPLOY_SSH_KEY` e `DEPLOY_KNOWN_HOSTS` (os mesmos do
+lps-ftm) e de `/srv/apps/ftm-dados/current` já criado no servidor.

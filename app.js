@@ -70,6 +70,31 @@
   // fonte, mês de referência e as suas seções; um que faltar é só ignorado.
   var FONTES = ["dados/ipca.json", "dados/fiscal.json", "dados/divida.json",
                 "dados/tesouro-direto.json", "dados/reservas.json", "dados/moedas.json"];
+  // ---------- gate de assinante ----------
+  // O site roda em dois lugares: ftm.app.br/interno/dados, onde é para
+  // assinante, e guivaraschinalves.github.io/ftm-dados, que segue aberto
+  // enquanto durar a transição. O gate só liga no primeiro — e lá o Caddy
+  // barra os JSON no servidor, que é o bloqueio que de fato vale. Este aqui é
+  // a porta de entrada, não a fechadura: esconder a tela não guarda número
+  // nenhum, e nunca foi para guardar.
+  //
+  // "?gate=1" liga o gate em qualquer endereço, para testar. Não existe o
+  // contrário: nenhum parâmetro desliga o que o domínio ligou.
+  var GATE = {
+    ligado: location.hostname === "ftm.app.br" || /[?&]gate=1(&|$)/.test(location.search),
+    // A MESMA chave do Follow the News. Mesma origem, mesma assinatura: quem
+    // liberou um já entra no outro, e há um lugar só para limpar quando vence.
+    chave: "ftn_access",
+    api: "https://supabase.liberta.com.vc/functions/v1/news-access",
+    checkout: "https://followthemoney.app.br"
+  };
+  function tokenSalvo() {
+    try { return localStorage.getItem(GATE.chave) || null; } catch (e) { return null; }
+  }
+  function esquecerToken() {
+    try { localStorage.removeItem(GATE.chave); } catch (e) {}
+  }
+
   var docs = [];
   var logoSvg = null;   // {viewBox, nos}
   // Imagens que entram dentro do desenho (a nota de R$100 sob a linha do poder
@@ -1554,12 +1579,15 @@
         nos.push(c);
       });
       logoSvg = { viewBox: vb.join(" "), razao: vb[3] / vb[2], nos: nos };
-      var topo = document.getElementById("logo-topo");
-      var s = el("svg", { viewBox: logoSvg.viewBox, "aria-hidden": "true" });
-      var gg = el("g", { fill: "currentColor" });
-      nos.forEach(function (n) { gg.appendChild(n.cloneNode(true)); });
-      s.appendChild(gg);
-      topo.appendChild(s);
+      ["logo-topo", "logo-gate"].forEach(function (id) {
+        var onde = document.getElementById(id);
+        if (!onde) return;
+        var s = el("svg", { viewBox: logoSvg.viewBox, "aria-hidden": "true" });
+        var gg = el("g", { fill: "currentColor" });
+        nos.forEach(function (n) { gg.appendChild(n.cloneNode(true)); });
+        s.appendChild(gg);
+        onde.appendChild(s);
+      });
     }).catch(function () {});
   }
 
@@ -1700,13 +1728,109 @@
     host.appendChild(cat);
   }
 
+  // Mostra a porta e espera o e-mail. Só é chamada quando o gate está ligado e
+  // não há token guardado — ou quando o servidor recusou o que havia.
+  function mostrarGate() {
+    var gate = document.getElementById("gate");
+    var app = document.getElementById("app");
+    var form = document.getElementById("gate-form");
+    var campo = document.getElementById("gate-email");
+    var botao = document.getElementById("gate-botao");
+    var erro = document.getElementById("gate-erro");
+    if (!gate || !form) return;                 // index.html antigo: não trava
+    gate.hidden = false;
+    app.hidden = true;
+    carregarLogo();
+    campo.focus();
+
+    function falha(txt) {
+      erro.innerHTML = "";
+      erro.appendChild(html("p", { texto: txt }));
+      var p = html("span", { "class": "assine", texto: "Ainda não assina? " });
+      var a = html("a", { href: GATE.checkout, target: "_blank", rel: "noopener noreferrer",
+                          texto: "clique aqui para assinar" });
+      p.appendChild(a);
+      p.appendChild(document.createTextNode("."));
+      erro.appendChild(p);
+      erro.hidden = false;
+    }
+
+    // mostrarGate pode ser chamada duas vezes — na abertura e de novo quando o
+    // servidor recusa um token vencido. Sem esta trava, o segundo "Liberar" ia
+    // disparar dois pedidos iguais.
+    if (form.dataset.ligado) return;
+    form.dataset.ligado = "1";
+
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var email = (campo.value || "").trim();
+      if (!email) return;
+      erro.hidden = true;
+      botao.disabled = true;
+      botao.textContent = "Verificando…";
+      fetch(GATE.api + "?action=validate", {
+        method: "POST",
+        // Sem chave nenhuma: o news-access roda com verify_jwt=false e o
+        // gateway não exige apikey (conferido com curl). Quem decide se o
+        // e-mail é de assinante é a função, por dentro, com service_role.
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.ok && d.token) {
+          try { localStorage.setItem(GATE.chave, d.token); } catch (e) {}
+          gate.hidden = true;
+          app.hidden = false;
+          // a marca do <html> veio do script do <head>; sem tirá-la o CSS
+          // continuaria escondendo o site mesmo com o portão liberado
+          document.documentElement.removeAttribute("data-portao");
+          carregar();
+          return;
+        }
+        // Resposta genérica de propósito, como no Follow the News: dizer "este
+        // e-mail não existe" entregaria a base de assinantes a quem perguntar.
+        falha("Não encontramos uma assinatura ativa para este e-mail.");
+      }).catch(function () {
+        falha("Não consegui falar com o servidor. Tente de novo em instantes.");
+      }).then(function () {
+        botao.disabled = false;
+        botao.textContent = "Liberar acesso";
+      });
+    });
+  }
+
   function iniciar() {
+    // A fiação da página fica aqui, e não no `carregar`: o carregar roda de
+    // novo quando o leitor libera o acesso, e ligar o mesmo ouvinte duas vezes
+    // faria o botão do tema piscar e o resize redesenhar em dobro.
+    document.getElementById("tema").addEventListener("click", alternarTema);
+    telaCheiaDaPagina();
+    var espera;
+    window.addEventListener("resize", function () {
+      clearTimeout(espera);
+      espera = setTimeout(function () { cartoes.forEach(function (c) { desenhar(c, false); }); }, 120);
+    });
+    if (GATE.ligado && !tokenSalvo()) return mostrarGate();
+    carregar();
+  }
+
+  function carregar() {
+    document.documentElement.removeAttribute("data-portao");
     var host = document.getElementById("graficos");
     var nav = document.getElementById("nav");
+    var token = tokenSalvo();
+    // 401 é o servidor dizendo que o token venceu ou nunca valeu: apaga e volta
+    // para a porta. Qualquer outra falha continua virando null, que o
+    // `if (!docs.length)` lá embaixo transforma na mensagem de erro de sempre.
+    var expirou = false;
     var buscas = FONTES.map(function (url) {
-      return fetch(url).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+      return fetch(url, token ? { headers: { "Authorization": "Bearer " + token } } : undefined)
+        .then(function (r) {
+          if (r.status === 401) { expirou = true; return null; }
+          return r.ok ? r.json() : null;
+        }).catch(function () { return null; });
     });
     Promise.all(buscas.concat([carregarLogo()])).then(function (r) {
+      if (expirou) { esquecerToken(); return mostrarGate(); }
       docs = r.slice(0, FONTES.length).filter(Boolean);
       if (!docs.length) throw new Error("nenhum arquivo de dados foi carregado");
       host.innerHTML = "";
@@ -1727,13 +1851,6 @@
       host.appendChild(html("p", { "class": "estado erro", texto: "Não foi possível carregar os dados. " + e.message }));
     });
 
-    document.getElementById("tema").addEventListener("click", alternarTema);
-    telaCheiaDaPagina();
-    var espera;
-    window.addEventListener("resize", function () {
-      clearTimeout(espera);
-      espera = setTimeout(function () { cartoes.forEach(function (c) { desenhar(c, false); }); }, 120);
-    });
   }
 
   iniciar();
