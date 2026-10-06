@@ -5,12 +5,16 @@
   --border: rgba(255, 255, 255, .13);
   --ink: #f2f2f2;
   --ink-2: rgba(255, 255, 255, .7);
-  --accent: #4BACC6;
-  --accent-wash: rgba(75, 172, 198, .16);
+  --accent: #0075FF;               /* azul do site e do app (design system do FtM) */
+  --accent-wash: rgba(0, 117, 255, .16);
+  --accent-fill: #1168CD;          /* fundo de botão escolhido: branco por cima passa de 4,5:1 */
+  --control-border: #707070;
   --chart-bg: #000 url("assets/fundo.jpg") center / cover no-repeat;
   --logo: #b3b3b3;
   --shadow: 0 10px 30px rgba(0, 0, 0, .4);
-  --font: Calibri, Carlito, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  /* Inter, como no site e no app. Os gráficos não usam isto: a fonte deles é a
+     FONT do app.js, a mesma dos slides. */
+  --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 :root[data-theme="light"] {
   --bg: #f3f4f5;
@@ -18,8 +22,10 @@
   --border: #dcdfe2;
   --ink: #1b1f23;
   --ink-2: #5b6570;
-  --accent: #2b7f96;
-  --accent-wash: rgba(43, 127, 150, .12);
+  --accent: #1168CD;               /* o #0075FF puro fica abaixo de 4,5:1 no fundo claro */
+  --accent-wash: rgba(17, 104, 205, .12);
+  --accent-fill: #1168CD;
+  --control-border: #9aa3ab;
   --chart-bg: #ffffff;
   --logo: #595959;
   --shadow: 0 6px 20px rgba(20, 30, 40, .08);
@@ -29,6 +35,15 @@
 html { color-scheme: dark; scroll-behavior: smooth; scroll-padding-top: 20px; }
 html[data-theme="light"] { color-scheme: light; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 var(--font); }
+
+/* Pular a barra lateral: fica fora da tela até receber foco pelo teclado. */
+.pular {
+  position: fixed; top: 10px; left: 10px; z-index: 200;
+  padding: 10px 16px; border-radius: 10px;
+  background: var(--accent-fill); color: #fff; font-weight: 600; text-decoration: none;
+  transform: translateY(-160%);
+}
+.pular:focus-visible { transform: none; }
 
 /* ---------- esqueleto: barra lateral + conteúdo ---------- */
 .app { display: grid; grid-template-columns: 268px 1fr; min-height: 100vh; }
@@ -45,7 +60,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 var(
 
 .icon-btn {
   display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px;
-  border-radius: 9px; border: 1px solid var(--border);
+  border-radius: 10px; border: 1px solid var(--control-border);
   background: var(--surface); color: var(--ink); cursor: pointer;
 }
 .icon-btn:hover { border-color: var(--accent); }
@@ -68,7 +83,15 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 var(
 .nav-rotulo { font-size: 15px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .nav-sub-rotulo { font-size: 14px; color: var(--ink-2); padding-left: 8px; }
 .nav-rotulo:hover, .nav-sub-rotulo:hover { background: var(--accent-wash); color: var(--ink); }
-.nav-conta { margin-left: auto; font-size: 12px; color: var(--ink-2); }
+/* A contagem não quebra e não herda a caixa-alta do rótulo. Quando nome e
+   contagem não cabem na mesma linha (OURO E RESERVAS INTERNACIONAIS numa fonte
+   larga), a contagem desce para a linha de baixo em vez de vazar da barra. */
+.nav-rotulo { flex-wrap: wrap; }
+.nav-rotulo > span:not(.nav-conta) { flex: 1 1 0; min-width: min-content; }
+.nav-conta {
+  margin-left: auto; font-size: 12px; font-weight: 400; color: var(--ink-2);
+  letter-spacing: 0; text-transform: none; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
 .nav a {
   display: block; padding: 5px 8px 5px 22px; border-radius: 7px;
   color: var(--ink-2); text-decoration: none; font-size: 13.5px; line-height: 1.3;
@@ -143,23 +166,24 @@ details[open] > summary > .seta, details[open] > .nav-rotulo > .seta, details[op
 .periodos { display: flex; flex-wrap: wrap; gap: 6px; }
 .periodos button, .btn {
   font: inherit; font-size: 14px; color: var(--ink-2); cursor: pointer;
-  background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px;
+  background: transparent; border: 1px solid var(--control-border); border-radius: 10px; padding: 5px 11px;
 }
 .periodos button:hover, .btn:hover { color: var(--ink); border-color: var(--accent); }
-.periodos button[aria-pressed="true"] { color: var(--ink); background: var(--accent-wash); border-color: var(--accent); }
+/* escolhido: o chip do design system, azul cheio com texto branco */
+.periodos button[aria-pressed="true"] { color: #fff; background: var(--accent-fill); border-color: var(--accent-fill); }
 .btn { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); }
 
 /* seleção de séries: mesmo botão dos períodos, com a cor da linha na frente.
-   Desligada, a série fica apagada e a tinta perde a cor. */
+   Desligada, a tinta perde a cor e o texto fica no cinza secundário, que
+   ainda passa de 4,5:1. */
 .series { display: flex; flex-wrap: wrap; gap: 6px; }
 .series button {
   font: inherit; font-size: 14px; color: var(--ink-2); cursor: pointer;
   display: inline-flex; align-items: center; gap: 7px;
-  background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px;
+  background: transparent; border: 1px solid var(--control-border); border-radius: 10px; padding: 5px 11px;
 }
 .series button:hover { color: var(--ink); border-color: var(--accent); }
 .series button[aria-pressed="true"] { color: var(--ink); border-color: var(--accent); background: var(--accent-wash); }
-.series button[aria-pressed="false"] { opacity: .55; }
 .series button[aria-pressed="false"] .tinta { background: var(--ink-2) !important; opacity: .4; }
 .series .tinta { width: 12px; height: 12px; border-radius: 3px; flex: none; }
 
@@ -174,7 +198,8 @@ details[open] > summary > .seta, details[open] > .nav-rotulo > .seta, details[op
   display: block; width: 100%; text-align: left; font: inherit; font-size: 14px;
   color: var(--ink); background: none; border: 0; border-radius: 7px; padding: 8px 10px; cursor: pointer;
 }
-.menu button:hover, .menu button:focus-visible { background: var(--accent-wash); outline: none; }
+.menu button:hover, .menu button:focus-visible { background: var(--accent-wash); }
+.menu button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .menu small { display: block; color: var(--ink-2); font-size: 12px; }
 .menu-rotulo { display: block; padding: 6px 10px 8px; font-size: 12px; color: var(--ink-2); }
 .menu-tamanho {
@@ -196,7 +221,7 @@ details[open] > summary > .seta, details[open] > .nav-rotulo > .seta, details[op
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 /* ---------- visor: um gráfico grande, com anotação à mão ---------- */
 body.visor-aberto { overflow: hidden; }
@@ -227,7 +252,7 @@ body.visor-aberto { overflow: hidden; }
 .visor-btn {
   font: inherit; font-size: 14px; color: #fff; cursor: pointer;
   background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .25);
-  border-radius: 7px; padding: 6px 12px;
+  border-radius: 10px; padding: 6px 12px;
 }
 .visor-btn:hover { background: rgba(255, 255, 255, .2); }
 .visor-btn[aria-pressed="true"] { background: rgba(255, 255, 255, .28); border-color: #fff; }
@@ -239,7 +264,7 @@ body.visor-aberto { overflow: hidden; }
 .visor-menu-btn {
   color: #fff; cursor: pointer; width: 34px; height: 34px; padding: 0;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .25); border-radius: 7px;
+  background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .25); border-radius: 10px;
 }
 .visor-menu-btn:hover, .visor-menu-btn[aria-expanded="true"] { background: rgba(255, 255, 255, .24); }
 .visor-menu {
@@ -267,7 +292,7 @@ body.visor-aberto { overflow: hidden; }
   position: absolute; z-index: 1; bottom: 18px; left: 50%; transform: translateX(-50%);
   font: inherit; font-size: 14px; color: #fff; cursor: pointer;
   background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .25);
-  border-radius: 7px; padding: 6px 14px;
+  border-radius: 10px; padding: 6px 14px;
 }
 .visor-baixar:hover { background: rgba(255, 255, 255, .2); }
 
@@ -357,7 +382,7 @@ body.visor-aberto { overflow: hidden; }
 .gate-sobrancelha {
   margin: 0 0 16px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 10px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: .22em; color: #6b6b6b;
+  letter-spacing: .22em; color: #8c8c8c;   /* 6:1 no preto; o #6b6b6b ficava em 3,9:1 */
 }
 .gate-texto {
   margin: 0 auto 28px; max-width: 330px;
@@ -370,8 +395,9 @@ body.visor-aberto { overflow: hidden; }
   background: #0e0e0e; border: 1px solid #272727; border-radius: 11px;
   transition: border-color .2s;
 }
-.gate-email::placeholder { color: #6b6b6b; }
-.gate-email:focus { outline: none; border-color: #0175ff; }
+.gate-email::placeholder { color: #8c8c8c; }
+/* um anel só, o do design system: a borda azul por dentro dobrava a linha */
+.gate-email:focus-visible { outline: 2px solid #0175ff; outline-offset: 3px; }
 .gate-erro {
   margin-top: 16px; padding: 16px; text-align: left; border-radius: 8px;
   border: 1px solid rgba(229, 72, 77, .3); background: rgba(229, 72, 77, .05);
@@ -399,3 +425,16 @@ body.visor-aberto { overflow: hidden; }
    lampejo do conteúdo. O app.js tira a marca ao liberar. */
 :root[data-portao] .app { display: none; }
 :root[data-portao] body { background: #000; }
+
+/* ---------- toque ----------
+   Em tela de toque, todo controle chega a 44px de altura (o mínimo do design
+   system do FtM e das diretrizes de acessibilidade). No mouse, a densidade
+   continua a mesma de antes. */
+button, summary, a, input, select { touch-action: manipulation; }
+@media (pointer: coarse) {
+  .icon-btn, .visor-menu-btn, .visor-fechar { width: 44px; height: 44px; }
+  .periodos button, .btn, .series button, .visor-btn, .visor-baixar,
+  .menu button, .menu-tamanho, .visor-menu button { min-height: 44px; }
+  .nav-rotulo, .nav-sub-rotulo, .fontes-rotulo, .nav a { min-height: 44px; }
+  .nav a { display: flex; align-items: center; }
+}

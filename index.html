@@ -3,9 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Follow the Money — Dados</title>
+  <title>Dados do Follow the Money</title>
   <meta name="description" content="Gráficos do IPCA atualizados automaticamente com dados do BCB e do IBGE.">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <!-- a cor da barra do navegador acompanha o fundo; o script abaixo e o
+       alternarTema() do app.js trocam o valor junto com o tema -->
+  <meta name="theme-color" content="#0b0b0b">
   <script>
     // Tema antes da pintura (sem piscar). Padrão: escuro, como os gráficos do FtM.
     (function () {
@@ -15,6 +18,8 @@
         if (s === "light" || s === "dark") t = s;
       } catch (e) {}
       document.documentElement.setAttribute("data-theme", t);
+      var cor = document.querySelector('meta[name="theme-color"]');
+      if (cor) cor.setAttribute("content", t === "light" ? "#f3f4f5" : "#0b0b0b");
     })();
   </script>
   <script>
@@ -29,7 +34,12 @@
       if (!t) document.documentElement.setAttribute("data-portao", "1");
     })();
   </script>
-  <link rel="stylesheet" href="styles.css?v=28">
+  <!-- Inter: a mesma fonte do site e do app (ftm.app.br). Os gráficos seguem
+       com a fonte dos slides, definida no app.js. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="styles.css?v=29">
 </head>
 <body>
   <!-- Gate de assinante. Fica escondido e so aparece em ftm.app.br, onde o
@@ -49,14 +59,16 @@
       <p class="gate-texto">Informe o e-mail da sua assinatura Follow the Money para liberar. Seu acesso fica salvo neste aparelho por 30 dias.</p>
       <form class="gate-form" id="gate-form">
         <input class="gate-email" id="gate-email" type="email" placeholder="seu@email.com"
-               required autocomplete="email" inputmode="email" aria-label="E-mail da assinatura">
-        <div class="gate-erro" id="gate-erro" hidden></div>
+               required name="email" autocomplete="email" inputmode="email" spellcheck="false"
+               autocapitalize="off" aria-label="E-mail da assinatura">
+        <div class="gate-erro" id="gate-erro" role="alert" hidden></div>
         <button class="gate-botao" id="gate-botao" type="submit">Liberar acesso</button>
       </form>
     </div>
   </div>
 
   <div class="app" id="app">
+    <a class="pular" href="#topo">Pular para os gráficos</a>
     <aside class="lateral">
       <div class="marca">
         <a class="marca-logo" href="#topo" aria-label="Follow the Money">
@@ -86,6 +98,6 @@
       </div>
     </main>
   </div>
-  <script src="app.js?v=28"></script>
+  <script src="app.js?v=29"></script>
 </body>
 </html>

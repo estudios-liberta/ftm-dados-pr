@@ -416,7 +416,7 @@
 
     var svg = el("svg", {
       xmlns: NS, viewBox: "0 0 " + L.W + " " + L.H, width: L.W, height: L.H,
-      role: "img", "aria-label": g.titulo + (g.subtitulo ? " — " + g.subtitulo : "")
+      role: "img", "aria-label": g.titulo + (g.subtitulo ? ". " + g.subtitulo : "")
     });
     var idClip = "clip-" + g.id + "-" + nomeTema;
     svg.appendChild(el("defs", {}, [el("clipPath", { id: idClip }, [
@@ -964,7 +964,7 @@
       itemDesenho.textContent = btnDesenho.textContent;
       dica.textContent = desenhando
         ? "Arraste sobre o gráfico para anotar"
-        : "Ligue “Desenhar” para anotar — com ele desligado, o gráfico mostra os valores do mês";
+        : "Ligue “Desenhar” para anotar. Desligado, o gráfico mostra os valores do mês";
     }
     var btnDesenho = html("button", { type: "button", "class": "visor-btn", "aria-pressed": "false", texto: "Desenhar" });
     btnDesenho.addEventListener("click", function () { alternarDesenho(); });
@@ -1561,6 +1561,8 @@
   function alternarTema() {
     var novo = tema() === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", novo);
+    var cor = document.querySelector('meta[name="theme-color"]');
+    if (cor) cor.setAttribute("content", novo === "light" ? "#f3f4f5" : "#0b0b0b");
     try { localStorage.setItem("ftm_dados_tema", novo); } catch (e) {}
     cartoes.forEach(function (c) { desenhar(c, true); });
     if (visor && !visor.box.hidden) pintarVisor();
@@ -1648,7 +1650,12 @@
       sub.appendChild(subRotulo);
       sec.graficos.forEach(function (g) {
         var a = html("a", { href: "#" + g.id, texto: rotuloNav(sec, g) });
-        a.addEventListener("click", function (ev) { ev.preventDefault(); irPara(g.id); });
+        a.addEventListener("click", function (ev) {
+          // Cmd/Ctrl/Shift/clique do meio: deixa o navegador abrir em outra aba
+          if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+          ev.preventDefault();
+          irPara(g.id);
+        });
         sub.appendChild(a);
       });
       grupo.appendChild(sub);
