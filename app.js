@@ -69,7 +69,7 @@
   // Um arquivo por categoria (IPCA, Dívida Pública…). Cada um traz categoria,
   // fonte, mês de referência e as suas seções; um que faltar é só ignorado.
   var FONTES = ["dados/ipca.json", "dados/fiscal.json", "dados/divida.json",
-                "dados/tesouro-direto.json", "dados/reservas.json"];
+                "dados/tesouro-direto.json", "dados/reservas.json", "dados/moedas.json"];
   var docs = [];
   var logoSvg = null;   // {viewBox, nos}
 
@@ -140,7 +140,15 @@
     // tonelada: a casa decimal só importa onde o número é pequeno (os −5,4 t
     // dos Estados Unidos); num estoque de 222 mil t ela é ruído
     t: { eixo: function (v, passo) { return nf(casasDoPasso(passo)).format(v); },
-         valor: function (v) { return nf(Math.abs(v) >= 1000 ? 0 : 1).format(v) + " t"; } }
+         valor: function (v) { return nf(Math.abs(v) >= 1000 ? 0 : 1).format(v) + " t"; } },
+    // poder de compra: um índice que começa em 100 e é lido como dinheiro
+    brl: { eixo: function (v, passo) { return "R$ " + nf(casasDoPasso(passo)).format(v); },
+           valor: function (v) { return "R$ " + nf(2).format(v); } },
+    usd: { eixo: function (v, passo) { return "$ " + nf(casasDoPasso(passo)).format(v); },
+           valor: function (v) { return "$ " + nf(2).format(v); } },
+    // câmbio: duas casas sempre, no eixo também — "R$ 1,5" por US$ se lê mal
+    "brl-usd": { eixo: function (v) { return "R$ " + nf(2).format(v); },
+                 valor: function (v) { return "R$ " + nf(2).format(v); } }
   };
   function unidade(g) { return UNIDADES[g.unidade] || UNIDADES["%"]; }
 
@@ -537,11 +545,29 @@
     var buracoMax = g.buracoMax || (g.diario ? 6 : 1);
     g.series.forEach(function (s, k) {
       if (s.tipo === "barra" || !vis[k].length) return;
-      var d = "", ant = null, YS = yDe(s);
+      var d = "", ant = null, YS = yDe(s), trechos = [], atual = [];
       vis[k].forEach(function (p) {
-        d += (ant === null || p.i - ant > buracoMax ? "M" : "L") + X(p.i + 0.5).toFixed(1) + " " + YS(p.v).toFixed(1);
+        var corta = ant === null || p.i - ant > buracoMax;
+        if (corta && atual.length) { trechos.push(atual); atual = []; }
+        atual.push([X(p.i + 0.5), YS(p.v)]);
+        d += (corta ? "M" : "L") + X(p.i + 0.5).toFixed(1) + " " + YS(p.v).toFixed(1);
         ant = p.i;
       });
+      if (atual.length) trechos.push(atual);
+      // "area": fecha cada trecho contínuo até a linha do zero e pinta. Um
+      // polígono por trecho, e não um só, para o buraco na série continuar
+      // sendo buraco — emendar por cima dele inventaria o mês que falta.
+      // O traço vai por cima, que é o que dá a borda nítida.
+      if (s.area) {
+        var yz = YS(0), cf = corNoTema(s.cor, pal);
+        trechos.forEach(function (t) {
+          if (t.length < 2) return;
+          var da = "M" + t[0][0].toFixed(1) + " " + yz.toFixed(1);
+          t.forEach(function (q) { da += "L" + q[0].toFixed(1) + " " + q[1].toFixed(1); });
+          da += "L" + t[t.length - 1][0].toFixed(1) + " " + yz.toFixed(1) + "Z";
+          area.appendChild(el("path", { d: da, fill: cf, opacity: s.opacidadeArea || 0.5, stroke: "none" }));
+        });
+      }
       var w = s.largura || L.linha, op = s.opacidade || null;
       area.appendChild(el("path", {
         d: d, fill: "none", stroke: corNoTema(s.cor, pal), "stroke-width": w, opacity: op,

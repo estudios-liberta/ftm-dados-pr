@@ -67,11 +67,12 @@ class Planilha:
         for c in ET.fromstring(self.z.read(self.abas[aba])).iter(NS + "c"):
             ref, tipo = c.get("r"), c.get("t")
             v, ins = c.find(NS + "v"), c.find(NS + "is")
-            if tipo == "s" and v is not None:
+            # <v/> sem texto é célula vazia de fórmula: cai no `continue` do else
+            if tipo == "s" and v is not None and v.text is not None:
                 val = self.textos[int(v.text)]
             elif tipo == "inlineStr" and ins is not None:
                 val = "".join(x.text or "" for x in ins.iter(NS + "t"))
-            elif v is not None:
+            elif v is not None and v.text is not None:
                 try:
                     val = float(v.text)
                 except ValueError:

@@ -10,9 +10,11 @@ Gráficos do chart book desenhados no navegador, sem build: `index.html` +
 | **Dívida Pública** | `dados/divida.json` | Gerados do Relatório Mensal da Dívida do Tesouro (o `.xlsx` em `dados/`) |
 | **Tesouro Direto** | `dados/tesouro-direto.json` | Baixados **sozinhos** do dado aberto do Tesouro Transparente (taxas diárias desde 2004) |
 | **Ouro e reservas internacionais** | `dados/reservas.json` | Gerados da planilha de ouro e reservas do FMI, do World Gold Council e da Metals Focus (o `.xlsx` em `dados/`) |
+| **Moedas e câmbio** | `dados/moedas.json` | Gerados da planilha de moedas — IPCA, CPI e PTAX (o `.xlsx` em `dados/`) |
 
 - **Menu na lateral** — uma categoria retrátil por arquivo de dados (IPCA,
-  Fiscal, Dívida Pública, Tesouro Direto, Ouro e reservas internacionais), com
+  Fiscal, Dívida Pública, Tesouro Direto, Ouro e reservas internacionais,
+  Moedas e câmbio), com
   as subcategorias dentro e os
   gráficos dentro delas. A
   página tem a mesma árvore, e **tudo abre fechado**: a tela inicial é o índice
@@ -478,3 +480,64 @@ dos botões — isso a tela já mostra.
 fora da legenda e da caixa do mouse — é o que faz o feixe cinza de "todos os
 anos" caber na tela. No **CSV ela entra assim mesmo**: na tela é contexto, no
 arquivo é dado.
+
+## As moedas e o câmbio (planilha de moedas)
+
+Também **não** se atualiza sozinha: vem de `dados/Moedas brasileiras 5.xlsx`.
+Para atualizar, trocar o `.xlsx` e rodar `python3 scripts/moedas.py` (ele pega
+o mais novo que casar com `*oeda*`).
+
+| Aba | Colunas | Cartão |
+|---|---|---|
+| 1-BRL PP Chart | C (mês) e D | Perda de poder de compra do real |
+| USD PP Chart | A (data) e B | Perda de poder de compra do dólar |
+| 2-Chart Câmbio Justo | C (mês), D e F | A taxa de câmbio de equilíbrio |
+| 3-BRL USD 99 Depr % | A (data) e B | Sobre/(sub)valorização do real |
+| Diferencial Inflação | A (data), B e C | Diferencial de inflação entre Brasil e Estados Unidos |
+
+Três coisas da planilha que o script precisa saber:
+
+- **A data nem sempre é a coluna A.** Nas abas `1-BRL PP Chart` e
+  `2-Chart Câmbio Justo` o mês do gráfico está na **coluna C**: a coluna A é
+  outro eixo, que começa em 1942 e serve a outro desenho. Ler a A alinharia
+  cada ponto a um mês errado por cinquenta anos — e sem erro nenhum na tela.
+- **Colunas duplicadas.** D e E da primeira aba são a mesma série, e o mesmo
+  vale para B e C da `USD PP Chart`. Só uma entra.
+- **O cabeçalho do FRED.** A `USD PP Chart` traz seis linhas de cabeçalho antes
+  do dado, e uma delas tem número na coluna do valor. O leitor descarta tudo
+  que não tenha um serial de data plausível na coluna da data.
+
+### O que cada série é
+
+O **poder de compra** das duas moedas é a mesma conta: 100 no mês-base,
+dividido pela inflação acumulada desde então. Do real, base junho de 1994 (o
+último mês fechado antes de 1º de julho, quando ele entrou em circulação),
+descontado o IPCA; do dólar, base dezembro de 1912, descontado o CPI — esse é o
+índice `CUUR0000SA0R` do BLS ("Purchasing Power of the Consumer Dollar")
+baixado do FRED e reindexado. A linha do dólar **sobe** nos anos 1920 e na
+Depressão, quando houve deflação, e não é retificada por isso.
+
+O **câmbio pela PPC** parte da paridade da estreia do real (R$ 1,00 por
+US$ 1,00 em julho de 1994) e daí anda só pelo diferencial de inflação: a cada
+mês é multiplicado pelo IPCA e dividido pelo CPI. Os três cartões de câmbio
+abrem em **março de 1999**, no flutuante — antes disso o dólar era
+administrado, e comparar o administrado com um câmbio de equilíbrio não diz
+nada sobre o mercado.
+
+A **sobre/(sub)valorização** não é dado independente: é `PPC ÷ mercado − 1`. O
+script refaz a conta e a confronta com a coluna B da aba 3 a cada rodada — hoje
+bate com **erro zero nos 329 meses**. Se um dia descolar, ele para em vez de
+publicar um gráfico que não é o que o título diz.
+
+### O buraco de outubro de 2025
+
+Quatro das cinco séries param um mês no caminho, e é o mesmo mês em todas. A
+paralisação de 43 dias do governo americano (1º de outubro a 12 de novembro de
+2025) impediu a coleta de preços, e o BLS **cancelou** o CPI daquele mês em vez
+de atrasá-lo: os dados não podem ser levantados retroativamente, então out/2025
+não existe e não vai passar a existir. Sem CPI não há diferencial de inflação,
+sem diferencial não há câmbio pela PPC, e sem ele não há sobre/(sub)valorização.
+
+O buraco fica **à vista** nos gráficos — a linha corta e a área se divide em
+dois polígonos. Emendar por cima dele seria inventar o mês. Só o poder de
+compra do real escapa, porque depende do IPCA e não do CPI.
