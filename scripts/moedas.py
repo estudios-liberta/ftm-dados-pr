@@ -63,9 +63,16 @@ BRANCO = "#FFFFFF"
 
 # A cédula que preenche a área sob a linha de cada gráfico de poder de compra.
 # O desenho estica a imagem no quadro do gráfico e recorta no traço: quanto da
-# nota aparece é o que ainda sobrou do dinheiro.
-NOTA_REAL = "assets/nota-real.jpg"
+# nota aparece é o que ainda sobrou do dinheiro. A do real é a da **primeira
+# família**, a que circulava em 1994, onde a linha começa — e não a atual, que
+# só saiu em 2010.
+NOTA_REAL = "assets/nota-real-1994.jpg"
 NOTA_DOLAR = "assets/nota-dolar.jpg"
+
+# Teto do eixo dos dois gráficos de poder de compra. Sem ele o do dólar sobe a
+# 120, porque o índice passa de 100 em 1913 (bate em 100,71 em maio), e os dois
+# gráficos deixam de ser lidos na mesma régua — que é o que faz a comparação.
+TETO_PODER = 100
 
 ABA_REAL = "1-BRL PP Chart"
 ABA_DOLAR = "USD PP Chart"
@@ -168,16 +175,11 @@ def grafico_poder_real(pp):
         titulo="Perda de poder de compra do real",
         subtitulo="O que R$ 100 da estreia do real compram em cada mês, descontado o IPCA",
         unidade="brl",
+        eixo=dict(max=TETO_PODER),
         fonte=FONTE_REAL,
         series=[serie("Real", BRANCO, pp, 2, largura=5, rotulo=True,
                       area=True, imagem=NOTA_REAL)],
-        nota="A linha é R$ 100 de junho de 1994 — o último mês fechado antes de o real entrar em "
-             "circulação, em 1º de julho — corrigidos pelo IPCA mês a mês: em cada ponto está o "
-             "que aquele dinheiro ainda compra, aos preços daquele mês. Não é uma previsão nem "
-             "uma conta de rendimento: dinheiro parado é a hipótese do gráfico, e por isso ele "
-             "mede a inflação acumulada, não o custo de oportunidade de quem investiu. Em %s o "
-             "índice está em R$ %.2f, uma perda de %.1f%% desde 1994."
-             % (ultimo, pp[ultimo], 100 - pp[ultimo]))
+    )
 
 
 def grafico_poder_dolar(pp):
@@ -187,20 +189,14 @@ def grafico_poder_dolar(pp):
         titulo="Perda de poder de compra do dólar",
         subtitulo="O que US$ 100 de dezembro de 1912 compram em cada mês, descontado o CPI",
         unidade="usd",
+        eixo=dict(max=TETO_PODER),
         # um rótulo por década: em 113 anos de série, o passo que o eixo escolhe
         # sozinho (dois anos) cabe mas vira um paredão de texto inclinado
         passoX=120,
         fonte=FONTE_DOLAR,
         series=[serie("Dólar", BRANCO, pp, 2, largura=5, rotulo=True,
                       area=True, imagem=NOTA_DOLAR)],
-        nota="Mesma conta do gráfico do real, com o CPI no lugar do IPCA e um século a mais de "
-             "história: é o índice do BLS \"Purchasing Power of the Consumer Dollar\", "
-             "reindexado para 100 em dezembro de 1912 (o original tem base 1982-84). A linha "
-             "sobe onde houve deflação — a queda de preços dos anos 1920 e a da Depressão — e "
-             "não é retificada por isso. Falta out/2025: a paralisação do governo americano "
-             "impediu a coleta de preços e o BLS cancelou o CPI daquele mês, que não pode ser "
-             "levantado depois. Em %s o índice está em US$ %.2f, uma perda de %.1f%%."
-             % (ultimo, pp[ultimo], 100 - pp[ultimo]))
+    )
 
 
 def grafico_cambio(mercado, ppc):
@@ -215,14 +211,7 @@ def grafico_cambio(mercado, ppc):
             serie("Dólar de mercado", VERDE, mercado, 4, largura=5, rotulo=True),
             serie("Câmbio pela PPC", AZUL, ppc, 4, largura=6, rotulo=True),
         ],
-        nota="A linha da PPC parte da paridade da estreia do real — R$ 1,00 por US$ 1,00 em "
-             "julho de 1994 — e daí em diante anda só pelo diferencial de inflação: a cada mês "
-             "ela é multiplicada pelo IPCA e dividida pelo CPI. É onde o câmbio estaria se os "
-             "dois países tivessem sempre o mesmo custo de vida em dólares, e não uma previsão "
-             "de para onde o câmbio vai. O gráfico abre em março de 1999, no câmbio flutuante: "
-             "antes disso o dólar era administrado e a comparação não diz nada sobre o mercado. "
-             "A linha da PPC para em out/2025, mês em que o CPI americano não foi coletado nem "
-             "publicado, e retoma em novembro.")
+    )
 
 
 def grafico_valorizacao(sv):
@@ -234,13 +223,7 @@ def grafico_valorizacao(sv):
         fonte=FONTE_CAMBIO,
         series=[serie("Sobre/(sub)valorização do real", LARANJA, sv, 2,
                       largura=4, area=True, rotulo=True)],
-        nota="É a razão entre as duas linhas do gráfico anterior, menos um: câmbio pela PPC "
-             "dividido pelo dólar de mercado. Acima de zero o real está mais caro do que a "
-             "paridade do poder de compra justificaria (sobrevalorizado) e abaixo, mais barato. "
-             "O sinal é do real, não do dólar — o pico de +97%% em 2011 é o real caro, não o "
-             "dólar. Zero não é um alvo nem um ponto de chegada: é só o nível em que os dois "
-             "países custam o mesmo em dólares, pela medida de preços ao consumidor de cada um. "
-             "Falta out/2025, que depende do CPI americano cancelado naquele mês.")
+    )
 
 
 def grafico_diferencial(br_maior, us_maior):
@@ -254,12 +237,7 @@ def grafico_diferencial(br_maior, us_maior):
             serie("Inflação do Brasil maior", AZUL, br_maior, 3, tipo="barra"),
             serie("Inflação dos EUA maior", VERMELHO, us_maior, 3, tipo="barra"),
         ],
-        nota="Uma série só, pintada de duas cores conforme o sinal: azul onde o IPCA de 12 meses "
-             "passa o CPI de 12 meses e vermelho onde é o contrário. É este número que move a "
-             "linha da PPC dos dois gráficos acima — enquanto ele fica positivo, o câmbio de "
-             "equilíbrio sobe. Os dois índices medem a cesta de consumo de cada país, com pesos "
-             "e método próprios, então o diferencial compara duas inflações domésticas; ele não "
-             "é a inflação de uma cesta comum. Falta out/2025: o CPI daquele mês foi cancelado.")
+    )
 
 
 # --------------------------------------------------------------------------

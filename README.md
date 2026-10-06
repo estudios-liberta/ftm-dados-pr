@@ -539,8 +539,15 @@ Três coisas da planilha que o script precisa saber:
 ### O que cada série é
 
 Os dois cartões de **poder de compra** levam a cédula correspondente sob a
-linha (`assets/nota-real.jpg` e `assets/nota-dolar.jpg`), como no modelo feito
-no PowerPoint — ver *Área preenchida, e a cédula sob a linha*, acima.
+linha (`assets/nota-real-1994.jpg` e `assets/nota-dolar.jpg`), como no modelo
+feito no PowerPoint — ver *Área preenchida, e a cédula sob a linha*, acima. A do
+real é a da **primeira família**, a que circulava em 1994, onde a linha começa;
+a atual só saiu em 2010. Os dois eixos são travados em **100** (`eixo: {max}`):
+sem isso o do dólar subiria a 120, porque o índice passa de 100 em 1913 (bate em
+100,71 em maio), e os dois gráficos deixariam de ser lidos na mesma régua.
+
+**Os cinco cartões desta categoria não têm nota de rodapé** — a metodologia
+está aqui, nesta seção, e não embaixo do gráfico.
 
 O **poder de compra** das duas moedas é a mesma conta: 100 no mês-base,
 dividido pela inflação acumulada desde então. Do real, base junho de 1994 (o
