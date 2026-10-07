@@ -596,7 +596,7 @@ durar a transição:
 
 | Endereço | Quem entra | Como é publicado |
 |---|---|---|
-| `ftm.app.br/interno/dados` | **assinante do Follow the Money** | `publicar.yml` manda por rsync para o VPS, e o Caddy serve |
+| `ftm.app.br/interno/dados` | **assinante do Follow the Money** | pelo lps-ftm, depois da migração (ver Publicação, abaixo) |
 | `guivaraschinalves.github.io/ftm-dados` | qualquer um | GitHub Pages, como sempre |
 
 ### Como o portão funciona
@@ -632,37 +632,16 @@ são dois passos, nesta ordem, e **nenhum deles mexe no código**:
    `atualizar.yml` continua rodando (repositório privado consome minutos da
    cota, e ~60 rodadas de 2 min por mês cabem folgado no plano gratuito).
 
-### Publicação no VPS
+### Publicação
 
-Desde 07/10/2026 **quem publica é o próprio servidor**, não o `publicar.yml`.
-O workflow nunca recebeu a chave e falha a cada push; pode ignorar o aviso.
+**Este repositório é de testes e não publica no ftm.app.br.** Só o lps-ftm
+publica no domínio (decisão do Keller, 07/10/2026). Para pôr a página no ar,
+ela é levada para o lps-ftm seguindo o guia `docs/MIGRAR_FTM_DADOS.md` de lá:
+página em `public/interno/dados`, scripts em `scripts/ftm-dados`, dados de API
+gerados no deploy agendado e os JSON sempre atrás do portão.
 
-O timer `ftm-dados-atualizar` do VPS roda às 09:45, 17:15 e 21:00 (horário de
-Brasília). Em cada rodada ele:
+Até essa migração, `ftm.app.br/interno/dados` mostra uma cópia congelada desta
+página, posta à mão, sem atualização de dados.
 
-1. traz o `main` deste repositório;
-2. refaz IPCA, fiscal e Tesouro Direto com os mesmos scripts do `atualizar.yml`;
-3. confere cada JSON;
-4. publica em `/srv/apps/ftm-dados/current`, sem `scripts/` e sem os `.xlsx`.
-
-Enquanto o `main` não tiver o visual novo (PR #1), vão ao ar só os dados e as
-imagens; com ele, o site inteiro. Então basta dar push no `main`: no máximo
-algumas horas depois, a mudança está em `ftm.app.br/interno/dados`.
-
-### Ao levar a página para o lps-ftm
-
-Este repositório é o lugar de testar. Quando a página estiver pronta e for
-morar no lps-ftm, três cuidados:
-
-1. **Parta da versão com o visual dos sites**: o PR #1 mergeado ou a branch
-   `ajustes-identidade-acessibilidade`. Os tokens e componentes vêm do design
-   system em `lps-ftm/src/components/site/ds/` (`ftm-ds.css` e `site.css`).
-2. **Os JSON precisam continuar atrás do portão.** Hoje o Caddy só protege
-   `/interno/dados/dados/*` porque essa rota aponta para
-   `/srv/apps/ftm-dados/current`. Arquivo de dados posto em `public/` do
-   lps-ftm sai aberto para qualquer um. E uma pasta em `public/` com o nome de
-   uma rota do site derruba a rota (o Caddy acha a pasta e responde 404).
-3. **A troca no servidor é com a equipe da Liberta** (o Keller), porque só ela
-   tem acesso ao VPS. É preciso mudar o bloco `/interno/dados` do Caddyfile
-   (`infra/Caddyfile.ftm.app.br.snippet` no lps-ftm), desligar o timer
-   `ftm-dados-atualizar` e decidir onde passam a rodar os três scripts de API.
+O `publicar.yml` saiu deste repositório: ele nunca publicou (não tinha a chave)
+e falhava a cada push.
