@@ -634,16 +634,35 @@ são dois passos, nesta ordem, e **nenhum deles mexe no código**:
 
 ### Publicação no VPS
 
-`publicar.yml` manda o site por rsync para `/srv/apps/ftm-dados/current`. Vai
-só o que o navegador precisa: `scripts/` e os `.xlsx` ficam de fora — são a
-cozinha, não o prato, e a planilha sozinha tem 2 MB.
+Desde 07/10/2026 **quem publica é o próprio servidor**, não o `publicar.yml`.
+O workflow nunca recebeu a chave e falha a cada push; pode ignorar o aviso.
 
-O gatilho tem uma sutileza: além do `push`, ele ouve o **`workflow_run`** do
-"Atualiza os dados". É que aquele workflow commita com o `GITHUB_TOKEN` padrão,
-e o GitHub não deixa push feito com esse token disparar outro workflow — para
-não criar laço infinito. Sem o `workflow_run`, o site no VPS congelaria no
-último commit humano enquanto o repositório continuasse atualizando, que é o
-tipo de falha que parece problema de cache e não é.
+O timer `ftm-dados-atualizar` do VPS roda às 09:45, 17:15 e 21:00 (horário de
+Brasília). Em cada rodada ele:
 
-Precisa dos segredos `DEPLOY_SSH_KEY` e `DEPLOY_KNOWN_HOSTS` (os mesmos do
-lps-ftm) e de `/srv/apps/ftm-dados/current` já criado no servidor.
+1. traz o `main` deste repositório;
+2. refaz IPCA, fiscal e Tesouro Direto com os mesmos scripts do `atualizar.yml`;
+3. confere cada JSON;
+4. publica em `/srv/apps/ftm-dados/current`, sem `scripts/` e sem os `.xlsx`.
+
+Enquanto o `main` não tiver o visual novo (PR #1), vão ao ar só os dados e as
+imagens; com ele, o site inteiro. Então basta dar push no `main`: no máximo
+algumas horas depois, a mudança está em `ftm.app.br/interno/dados`.
+
+### Ao levar a página para o lps-ftm
+
+Este repositório é o lugar de testar. Quando a página estiver pronta e for
+morar no lps-ftm, três cuidados:
+
+1. **Parta da versão com o visual dos sites**: o PR #1 mergeado ou a branch
+   `ajustes-identidade-acessibilidade`. Os tokens e componentes vêm do design
+   system em `lps-ftm/src/components/site/ds/` (`ftm-ds.css` e `site.css`).
+2. **Os JSON precisam continuar atrás do portão.** Hoje o Caddy só protege
+   `/interno/dados/dados/*` porque essa rota aponta para
+   `/srv/apps/ftm-dados/current`. Arquivo de dados posto em `public/` do
+   lps-ftm sai aberto para qualquer um. E uma pasta em `public/` com o nome de
+   uma rota do site derruba a rota (o Caddy acha a pasta e responde 404).
+3. **A troca no servidor é com a equipe da Liberta** (o Keller), porque só ela
+   tem acesso ao VPS. É preciso mudar o bloco `/interno/dados` do Caddyfile
+   (`infra/Caddyfile.ftm.app.br.snippet` no lps-ftm), desligar o timer
+   `ftm-dados-atualizar` e decidir onde passam a rodar os três scripts de API.
